@@ -108,9 +108,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { amount, productId, customerInfo } = req.body;
       
+      // Ensure minimum amount for Stripe (50 cents)
+      const chargeAmount = Math.max(Math.round(amount * 100), 50);
+      
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: chargeAmount,
         currency: "usd",
+        automatic_payment_methods: {
+          enabled: true,
+        },
         metadata: {
           productId: productId.toString(),
           customerName: customerInfo.name,
@@ -120,6 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
+      console.error("Stripe error:", error);
       res.status(500).json({ message: "Error creating payment intent: " + error.message });
     }
   });
