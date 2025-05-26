@@ -22,8 +22,6 @@ export function ProductCard({ product, hoverColor = "green" }: ProductCardProps)
     blue: "text-electric",
   };
 
-  const btcPrice = (parseFloat(product.price) / 18000).toFixed(3); // Rough BTC conversion
-
   return (
     <Card className={`group glass-morphism ${hoverClasses[hoverColor]} transition-all duration-500 transform hover:-translate-y-2`}>
       <CardContent className="p-6">
@@ -42,10 +40,10 @@ export function ProductCard({ product, hoverColor = "green" }: ProductCardProps)
           </p>
           <div className="flex items-center justify-between">
             <span className={`text-3xl font-bold font-mono ${priceColor[hoverColor]}`}>
-              ₿{btcPrice}
+              ${parseFloat(product.price).toFixed(2)}
             </span>
             <span className="text-lg text-gray-400 font-mono">
-              (${parseFloat(product.price).toLocaleString()})
+              USD
             </span>
           </div>
           <Link href={`/product/${product.id}`}>

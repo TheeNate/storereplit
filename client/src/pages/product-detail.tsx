@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Elements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import { CreditCard, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,8 +130,6 @@ export default function ProductDetail() {
     );
   }
 
-  const btcPrice = (parseFloat(product.price) / 18000).toFixed(3);
-
   return (
     <main className="pt-20 py-20 px-6">
       <div className="container mx-auto max-w-6xl">
@@ -163,9 +161,9 @@ export default function ProductDetail() {
                 {product.title}
               </h1>
               <div className="flex items-center space-x-4 mb-6">
-                <span className="text-4xl font-bold text-white font-mono">₿{btcPrice}</span>
+                <span className="text-4xl font-bold text-matrix font-mono">${parseFloat(product.price).toFixed(2)}</span>
                 <span className="text-xl text-gray-400 font-mono">
-                  (${parseFloat(product.price).toLocaleString()} USD)
+                  USD
                 </span>
               </div>
               <p className="text-gray-300 leading-relaxed font-mono">
@@ -265,7 +263,7 @@ export default function ProductDetail() {
                         disabled={createPaymentIntentMutation.isPending}
                       >
                         <CreditCard className="mr-2" size={20} />
-                        {createPaymentIntentMutation.isPending ? "PREPARING..." : `PAY WITH STRIPE - ₿${btcPrice}`}
+                        {createPaymentIntentMutation.isPending ? "PREPARING..." : `PAY WITH STRIPE - $${parseFloat(product.price).toFixed(2)}`}
                       </Button>
                     )}
 
@@ -273,7 +271,7 @@ export default function ProductDetail() {
                       <Elements stripe={stripePromise} options={{ clientSecret }}>
                         <StripeCheckoutForm 
                           onSuccess={handlePaymentSuccess}
-                          amount={btcPrice}
+                          amount={parseFloat(product.price).toFixed(2)}
                         />
                       </Elements>
                     )}
