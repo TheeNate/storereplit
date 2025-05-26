@@ -123,7 +123,9 @@
   }
 
   .glass-morphism {
-    @apply bg-dark-surface/80 backdrop-blur-lg border border-matrix/20;
+    @apply bg-dark-surface backdrop-blur-lg border border-matrix;
+    background-color: hsl(var(--dark-surface) / 0.8);
+    border-color: hsl(var(--matrix) / 0.2);
   }
 
   .glitch-text {
