@@ -52,7 +52,7 @@ export default function ProductDetail() {
   const createPaymentIntentMutation = useMutation({
     mutationFn: async (data: OrderForm) => {
       const response = await apiRequest("POST", "/api/create-payment-intent", {
-        amount: parseFloat(product?.price || "0"),
+        amount: Number(product?.price || "1.00"),
         productId,
         customerInfo: data,
       });
@@ -161,7 +161,7 @@ export default function ProductDetail() {
                 {product.title}
               </h1>
               <div className="flex items-center space-x-4 mb-6">
-                <span className="text-4xl font-bold text-matrix font-mono">${parseFloat(product.price).toFixed(2)}</span>
+                <span className="text-4xl font-bold text-matrix font-mono">${Number(product.price).toFixed(2)}</span>
                 <span className="text-xl text-gray-400 font-mono">
                   USD
                 </span>
@@ -263,7 +263,7 @@ export default function ProductDetail() {
                         disabled={createPaymentIntentMutation.isPending}
                       >
                         <CreditCard className="mr-2" size={20} />
-                        {createPaymentIntentMutation.isPending ? "PREPARING..." : `PAY WITH STRIPE - $${parseFloat(product.price).toFixed(2)}`}
+                        {createPaymentIntentMutation.isPending ? "PREPARING..." : `PAY WITH STRIPE - $${Number(product.price).toFixed(2)}`}
                       </Button>
                     )}
 
@@ -271,7 +271,7 @@ export default function ProductDetail() {
                       <Elements stripe={stripePromise} options={{ clientSecret }}>
                         <StripeCheckoutForm 
                           onSuccess={handlePaymentSuccess}
-                          amount={parseFloat(product.price).toFixed(2)}
+                          amount={Number(product.price).toFixed(2)}
                         />
                       </Elements>
                     )}
