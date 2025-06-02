@@ -9,7 +9,7 @@ import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { sendOrderNotification } from "./sendgrid";
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+  throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -18,29 +18,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
+  dest: "uploads/",
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPEG, PNG and WebP images are allowed'));
+      cb(new Error("Only JPEG, PNG and WebP images are allowed"));
     }
   },
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
-  }
+  },
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
   // Get all products
   app.get("/api/products", async (req, res) => {
     try {
       const products = await storage.getAllProducts();
       res.json(products);
     } catch (error: any) {
-      res.status(500).json({ message: "Error fetching products: " + error.message });
+      res
+        .status(500)
+        .json({ message: "Error fetching products: " + error.message });
     }
   });
 
@@ -54,7 +55,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(product);
     } catch (error: any) {
-      res.status(500).json({ message: "Error fetching product: " + error.message });
+      res
+        .status(500)
+        .json({ message: "Error fetching product: " + error.message });
     }
   });
 
@@ -63,22 +66,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { password } = req.body;
       const adminPassword = process.env.ADMIN_PASSWORD || "btcglass2024";
-      
+
       if (password === adminPassword) {
         res.json({ success: true });
       } else {
         res.status(401).json({ message: "Invalid password" });
       }
     } catch (error: any) {
-      res.status(500).json({ message: "Authentication error: " + error.message });
+      res
+        .status(500)
+        .json({ message: "Authentication error: " + error.message });
     }
   });
 
   // Create product (admin only)
-  app.post("/api/products", upload.single('image'), async (req, res) => {
+  app.post("/api/products", upload.single("image"), async (req, res) => {
     try {
       const { title, description, price } = req.body;
-      
+
       if (!req.file) {
         return res.status(400).json({ message: "Product image is required" });
       }
@@ -96,10 +101,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertProductSchema.parse(productData);
       const product = await storage.createProduct(validatedData);
-      
+
       res.json(product);
     } catch (error: any) {
-      res.status(400).json({ message: "Error creating product: " + error.message });
+      res
+        .status(400)
+        .json({ message: "Error creating product: " + error.message });
     }
   });
 
@@ -107,10 +114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       const { amount, productId, customerInfo } = req.body;
-      
-      // Ensure minimum amount for Stripe (50 cents)
-      const chargeAmount = Math.max(Math.round(amount * 100), 50);
-      
+
+      // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
+      const chargeAmount = Math.max(Math.round(parseFloat(amount) * 100), 50);
+
+      console.log("Creating payment intent:", {
+        amount,
+        chargeAmount,
+        productId,
+      });
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: chargeAmount,
         currency: "usd",
@@ -123,20 +136,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerEmail: customerInfo.email,
         },
       });
-      
+
+      console.log("Payment intent created:", paymentIntent.id);
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
       console.error("Stripe error:", error);
-      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+      res
+        .status(500)
+        .json({ message: "Error creating payment intent: " + error.message });
     }
   });
 
   // Handle successful payment and create order
   app.post("/api/orders", async (req, res) => {
     try {
+      console.log("Creating order with data:", req.body);
+
       const orderData = insertOrderSchema.parse(req.body);
+
+      // Verify the payment intent was successful
+      if (orderData.stripePaymentIntentId) {
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(
+            orderData.stripePaymentIntentId,
+          );
+          console.log("Payment intent status:", paymentIntent.status);
+
+          if (paymentIntent.status !== "succeeded") {
+            return res.status(400).json({
+              message: `Payment not completed. Status: ${paymentIntent.status}`,
+            });
+          }
+        } catch (stripeError: any) {
+          console.error("Error verifying payment intent:", stripeError);
+          return res.status(400).json({
+            message: "Error verifying payment: " + stripeError.message,
+          });
+        }
+      }
+
       const order = await storage.createOrder(orderData);
-      
+      console.log("Order created:", order.id);
+
       // Get product details for email
       const product = await storage.getProduct(order.productId);
       if (!product) {
@@ -144,27 +185,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Send email notification to manufacturer
-      const manufacturerEmail = process.env.MANUFACTURER_EMAIL || "manufacturer@btcglass.art";
-      
-      await sendOrderNotification({
-        to: manufacturerEmail,
-        customerName: order.customerName,
-        customerEmail: order.customerEmail,
-        shippingAddress: order.shippingAddress,
-        productTitle: product.title,
-        productDescription: product.description,
-        productImage: product.imageUrl,
-        amount: order.amount,
-        notes: order.notes || undefined,
-        orderId: order.id,
-      });
+      const manufacturerEmail =
+        process.env.MANUFACTURER_EMAIL || "manufacturer@btcglass.art";
+
+      try {
+        await sendOrderNotification({
+          to: manufacturerEmail,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          shippingAddress: order.shippingAddress,
+          productTitle: product.title,
+          productDescription: product.description,
+          productImage: product.imageUrl,
+          amount: order.amount,
+          notes: order.notes || undefined,
+          orderId: order.id,
+        });
+        console.log("Order notification email sent");
+      } catch (emailError: any) {
+        console.error("Error sending email:", emailError);
+        // Don't fail the order creation if email fails
+      }
 
       // Update order status
       await storage.updateOrderStatus(order.id, "confirmed");
-      
+      console.log("Order status updated to confirmed");
+
       res.json(order);
     } catch (error: any) {
-      res.status(400).json({ message: "Error creating order: " + error.message });
+      console.error("Error creating order:", error);
+      res
+        .status(400)
+        .json({ message: "Error creating order: " + error.message });
     }
   });
 
@@ -178,12 +230,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(order);
     } catch (error: any) {
-      res.status(500).json({ message: "Error fetching order: " + error.message });
+      res
+        .status(500)
+        .json({ message: "Error fetching order: " + error.message });
     }
   });
 
+  // Stripe webhook endpoint (optional but recommended for production)
+  app.post(
+    "/api/stripe-webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["stripe-signature"];
+      const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+      if (!endpointSecret) {
+        console.log(
+          "No webhook secret configured, skipping webhook verification",
+        );
+        return res.status(400).send("Webhook secret not configured");
+      }
+
+      let event;
+
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig!, endpointSecret);
+      } catch (err: any) {
+        console.log(`Webhook signature verification failed.`, err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+
+      // Handle the event
+      switch (event.type) {
+        case "payment_intent.succeeded":
+          const paymentIntent = event.data.object;
+          console.log("PaymentIntent was successful!", paymentIntent.id);
+          break;
+        default:
+          console.log(`Unhandled event type ${event.type}`);
+      }
+
+      res.json({ received: true });
+    },
+  );
+
   // Serve uploaded files
-  app.use('/uploads', express.static('uploads'));
+  app.use("/uploads", express.static("uploads"));
 
   const httpServer = createServer(app);
   return httpServer;

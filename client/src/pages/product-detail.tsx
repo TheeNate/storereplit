@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Elements, useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
+import {
+  Elements,
+  useStripe,
+  useElements,
+  PaymentElement,
+} from "@stripe/react-stripe-js";
 import { CreditCard, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
 import type { Product } from "@shared/schema";
@@ -35,7 +47,7 @@ export default function ProductDetail() {
   const [clientSecret, setClientSecret] = useState("");
 
   const { data: product, isLoading } = useQuery<Product>({
-    queryKey: ["/api/products", productId],
+    queryKey: [`/api/products/${productId}`],
     enabled: !!productId,
   });
 
@@ -51,17 +63,20 @@ export default function ProductDetail() {
 
   const createPaymentIntentMutation = useMutation({
     mutationFn: async (data: OrderForm) => {
+      console.log("Creating payment intent for product:", product);
       const response = await apiRequest("POST", "/api/create-payment-intent", {
-        amount: Number(product?.price || "1.00"),
+        amount: parseFloat(product?.price || "0"),
         productId,
         customerInfo: data,
       });
       return response.json();
     },
     onSuccess: (data) => {
+      console.log("Payment intent created successfully:", data);
       setClientSecret(data.clientSecret);
     },
     onError: (error: any) => {
+      console.error("Payment intent creation failed:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -72,10 +87,12 @@ export default function ProductDetail() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
+      console.log("SENDING ORDER DATA TO API:", orderData);
       const response = await apiRequest("POST", "/api/orders", orderData);
       return response.json();
     },
     onSuccess: (order) => {
+      console.log("Order created successfully:", order);
       toast({
         title: "Order Created",
         description: "Your order has been confirmed!",
@@ -83,6 +100,7 @@ export default function ProductDetail() {
       setLocation(`/success?orderId=${order.id}`);
     },
     onError: (error: any) => {
+      console.error("Order creation failed:", error);
       toast({
         title: "Order Failed",
         description: error.message,
@@ -92,23 +110,45 @@ export default function ProductDetail() {
   });
 
   const onSubmit = (data: OrderForm) => {
-    if (!product) return;
+    if (!product) {
+      console.error("No product available for payment intent creation");
+      return;
+    }
+    console.log("Form submitted with:", data);
+    console.log("Product data:", product);
     createPaymentIntentMutation.mutate(data);
   };
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
-    if (!product) return;
+    console.log("=== PAYMENT SUCCESS HANDLER CALLED ===");
+    console.log("Payment Intent ID:", paymentIntentId);
+    console.log("Product data:", product);
+
+    if (!product) {
+      console.error("No product data available for order creation");
+      return;
+    }
 
     const formData = form.getValues();
-    await createOrderMutation.mutateAsync({
+    console.log("Form data:", formData);
+
+    const orderData = {
       productId: product.id,
       customerName: formData.name,
       customerEmail: formData.email,
       shippingAddress: formData.address,
-      notes: formData.notes,
+      notes: formData.notes || "",
       amount: product.price,
       stripePaymentIntentId: paymentIntentId,
-    });
+    };
+
+    console.log("CREATING ORDER WITH DATA:", orderData);
+
+    try {
+      await createOrderMutation.mutateAsync(orderData);
+    } catch (error) {
+      console.error("Error in handlePaymentSuccess:", error);
+    }
   };
 
   if (isLoading) {
@@ -123,12 +163,18 @@ export default function ProductDetail() {
     return (
       <div className="min-h-screen pt-20 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-4xl font-display font-bold text-matrix mb-4">Product Not Found</h1>
-          <p className="text-gray-400 font-mono">The requested product does not exist.</p>
+          <h1 className="text-4xl font-display font-bold text-matrix mb-4">
+            Product Not Found
+          </h1>
+          <p className="text-gray-400 font-mono">
+            The requested product does not exist.
+          </p>
         </div>
       </div>
     );
   }
+
+  const productPrice = parseFloat(product.price);
 
   return (
     <main className="pt-20 py-20 px-6">
@@ -136,17 +182,17 @@ export default function ProductDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Image */}
           <div className="space-y-6">
-            <img 
-              src={product.imageUrl} 
+            <img
+              src={product.imageUrl}
               alt={product.title}
               className="w-full rounded-xl shadow-neon-green"
             />
-            
+
             <div className="grid grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <img 
+                <img
                   key={i}
-                  src={product.imageUrl} 
+                  src={product.imageUrl}
                   alt={`${product.title} view ${i + 1}`}
                   className="w-full h-20 object-cover rounded-lg cursor-pointer hover:shadow-neon-green transition-all"
                 />
@@ -161,10 +207,10 @@ export default function ProductDetail() {
                 {product.title}
               </h1>
               <div className="flex items-center space-x-4 mb-6">
-                <span className="text-4xl font-bold text-matrix font-mono">${Number(product.price).toFixed(2)}</span>
-                <span className="text-xl text-gray-400 font-mono">
-                  USD
+                <span className="text-4xl font-bold text-matrix font-mono">
+                  ${productPrice.toFixed(2)}
                 </span>
+                <span className="text-xl text-gray-400 font-mono">USD</span>
               </div>
               <p className="text-gray-300 leading-relaxed font-mono">
                 {product.description}
@@ -181,16 +227,21 @@ export default function ProductDetail() {
               </CardHeader>
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-6"
+                  >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-matrix font-mono text-sm">NAME *</FormLabel>
+                            <FormLabel className="text-matrix font-mono text-sm">
+                              NAME *
+                            </FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 {...field}
                                 className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
                                 placeholder="Satoshi Nakamoto"
@@ -205,9 +256,11 @@ export default function ProductDetail() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-matrix font-mono text-sm">EMAIL *</FormLabel>
+                            <FormLabel className="text-matrix font-mono text-sm">
+                              EMAIL *
+                            </FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 {...field}
                                 type="email"
                                 className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
@@ -225,9 +278,11 @@ export default function ProductDetail() {
                       name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-matrix font-mono text-sm">SHIPPING ADDRESS *</FormLabel>
+                          <FormLabel className="text-matrix font-mono text-sm">
+                            SHIPPING ADDRESS *
+                          </FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               {...field}
                               className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green h-24"
                               placeholder="123 Blockchain Ave&#10;Crypto City, CC 12345&#10;Digital Nation"
@@ -243,9 +298,11 @@ export default function ProductDetail() {
                       name="notes"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-matrix font-mono text-sm">SPECIAL INSTRUCTIONS</FormLabel>
+                          <FormLabel className="text-matrix font-mono text-sm">
+                            SPECIAL INSTRUCTIONS
+                          </FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               {...field}
                               className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green h-20"
                               placeholder="Any custom engraving requests or special handling notes..."
@@ -257,27 +314,33 @@ export default function ProductDetail() {
                     />
 
                     {!clientSecret && (
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
                         disabled={createPaymentIntentMutation.isPending}
                       >
                         <CreditCard className="mr-2" size={20} />
-                        {createPaymentIntentMutation.isPending ? "PREPARING..." : `PAY WITH STRIPE - $${Number(product.price).toFixed(2)}`}
+                        {createPaymentIntentMutation.isPending
+                          ? "PREPARING..."
+                          : `PAY WITH STRIPE - $${productPrice.toFixed(2)}`}
                       </Button>
                     )}
 
                     {clientSecret && (
-                      <Elements stripe={stripePromise} options={{ clientSecret }}>
-                        <StripeCheckoutForm 
+                      <Elements
+                        stripe={stripePromise}
+                        options={{ clientSecret }}
+                      >
+                        <StripeCheckoutForm
                           onSuccess={handlePaymentSuccess}
-                          amount={Number(product.price).toFixed(2)}
+                          amount={productPrice.toFixed(2)}
                         />
                       </Elements>
                     )}
 
                     <p className="text-xs text-gray-500 font-mono text-center">
-                      Secure payment powered by Stripe. Your order will be sent to our manufacturer immediately after payment.
+                      Secure payment powered by Stripe. Your order will be sent
+                      to our manufacturer immediately after payment.
                     </p>
                   </form>
                 </Form>
@@ -291,7 +354,13 @@ export default function ProductDetail() {
 }
 
 // Separate component for Stripe Elements
-function StripeCheckoutForm({ onSuccess, amount }: { onSuccess: (paymentIntentId: string) => void; amount: string }) {
+function StripeCheckoutForm({
+  onSuccess,
+  amount,
+}: {
+  onSuccess: (paymentIntentId: string) => void;
+  amount: string;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -300,43 +369,123 @@ function StripeCheckoutForm({ onSuccess, amount }: { onSuccess: (paymentIntentId
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) return;
-
-    setIsProcessing(true);
-
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: window.location.origin + "/success",
-      },
-      redirect: "if_required",
-    });
-
-    if (error) {
+    if (!stripe || !elements) {
+      console.error("Stripe or Elements not loaded");
       toast({
-        title: "Payment Failed",
-        description: error.message,
+        title: "Payment Error",
+        description: "Payment system not ready. Please try again.",
         variant: "destructive",
       });
-    } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      await onSuccess(paymentIntent.id);
+      return;
+    }
+
+    setIsProcessing(true);
+    console.log("Starting payment confirmation...");
+
+    try {
+      // First, submit the payment element to collect payment method
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        console.error("Error submitting payment element:", submitError);
+        toast({
+          title: "Payment Error",
+          description:
+            submitError.message || "Error submitting payment information",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log("Payment element submitted successfully");
+
+      // Then confirm the payment
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/success`,
+        },
+        redirect: "if_required",
+      });
+
+      console.log("Payment confirmation result:", { error, paymentIntent });
+
+      if (error) {
+        console.error("Payment confirmation error:", error);
+        toast({
+          title: "Payment Failed",
+          description: error.message || "Payment could not be processed",
+          variant: "destructive",
+        });
+      } else if (paymentIntent) {
+        console.log(
+          "Payment successful:",
+          paymentIntent.id,
+          "Status:",
+          paymentIntent.status,
+        );
+
+        if (paymentIntent.status === "succeeded") {
+          console.log(
+            "Payment succeeded, calling onSuccess with:",
+            paymentIntent.id,
+          );
+          await onSuccess(paymentIntent.id);
+        } else {
+          console.log("Payment not succeeded, status:", paymentIntent.status);
+          toast({
+            title: "Payment Incomplete",
+            description: `Payment status: ${paymentIntent.status}`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("No payment intent returned");
+        toast({
+          title: "Payment Error",
+          description: "No payment confirmation received",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Unexpected error during payment:", err);
+      toast({
+        title: "Payment Error",
+        description: "An unexpected error occurred during payment",
+        variant: "destructive",
+      });
     }
 
     setIsProcessing(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="p-4 bg-darker-surface rounded-lg border border-matrix/30">
-        {/* PaymentElement will be rendered here by Stripe */}
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            paymentMethodOrder: ["card"],
+          }}
+          onReady={() => {
+            console.log("PaymentElement is ready");
+          }}
+          onChange={(event) => {
+            console.log("PaymentElement changed:", event);
+            if (event.error) {
+              console.error("PaymentElement error:", event.error);
+            }
+          }}
+        />
       </div>
-      <Button 
-        type="submit" 
-        disabled={!stripe || isProcessing}
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!stripe || !elements || isProcessing}
         className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
       >
-        {isProcessing ? "PROCESSING..." : `COMPLETE PAYMENT - ₿${amount}`}
+        {isProcessing ? "PROCESSING..." : `COMPLETE PAYMENT - $${amount}`}
       </Button>
-    </form>
+    </div>
   );
 }
