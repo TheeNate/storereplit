@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 84% 4%;  /* #0A0A0A */
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 222 84% 4%;
+  --popover-foreground: 0 0% 98%;
+  --card: 220 13% 10%;  /* #1A1A1A */
+  --card-foreground: 0 0% 98%;
+  --border: 220 13% 15.9%;
+  --input: 220 13% 15.9%;
+  --primary: 158 64% 52%;  /* #00FF88 - matrix green */
+  --primary-foreground: 220 13% 10%;
+  --secondary: 220 13% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 220 13% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 158 64% 52%;
+  --radius: 0.5rem;
+
+  /* Custom BTC Glass colors */
+  --matrix: 158 64% 52%;      /* #00FF88 */
+  --cyber-pink: 320 100% 50%; /* #FF0080 */
+  --electric: 195 100% 50%;   /* #00D4FF */
+  --deep-black: 222 84% 4%;   /* #0A0A0A */
+  --dark-surface: 220 13% 10%; /* #1A1A1A */
+  --darker-surface: 220 13% 7%; /* #111111 */
+}
+
+.dark {
+  --background: 222 84% 4%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 222 84% 4%;
+  --popover-foreground: 0 0% 98%;
+  --card: 220 13% 10%;
+  --card-foreground: 0 0% 98%;
+  --border: 220 13% 15.9%;
+  --input: 220 13% 15.9%;
+  --primary: 158 64% 52%;
+  --primary-foreground: 220 13% 10%;
+  --secondary: 220 13% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 220 13% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 158 64% 52%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground overflow-x-hidden;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .font-display {
+    font-family: 'Orbitron', sans-serif;
+  }
+}
+
+@layer components {
+  .text-matrix {
+    color: hsl(var(--matrix));
+  }
+
+  .text-cyber-pink {
+    color: hsl(var(--cyber-pink));
+  }
+
+  .text-electric {
+    color: hsl(var(--electric));
+  }
+
+  .bg-deep-black {
+    background-color: hsl(var(--deep-black));
+  }
+
+  .bg-dark-surface {
+    background-color: hsl(var(--dark-surface));
+  }
+
+  .bg-darker-surface {
+    background-color: hsl(var(--darker-surface));
+  }
+
+  .border-matrix {
+    border-color: hsl(var(--matrix));
+  }
+
+  .border-cyber-pink {
+    border-color: hsl(var(--cyber-pink));
+  }
+
+  .border-electric {
+    border-color: hsl(var(--electric));
+  }
+
+  .cyber-border {
+    @apply border border-matrix bg-gradient-to-r from-transparent to-transparent;
+    background-image: linear-gradient(to right, transparent, hsl(var(--matrix) / 0.1), transparent);
+  }
+
+  .glass-morphism {
+    @apply bg-dark-surface backdrop-blur-lg border border-matrix;
+    background-color: hsl(var(--dark-surface) / 0.8);
+    border-color: hsl(var(--matrix) / 0.2);
+  }
+
+  .glitch-text {
+    position: relative;
+  }
+
+  .glitch-text::before,
+  .glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .glitch-text::before {
+    animation: glitch 2s infinite;
+    color: hsl(var(--cyber-pink));
+    z-index: -1;
+  }
+
+  .glitch-text::after {
+    animation: glitch 2s infinite reverse;
+    color: hsl(var(--electric));
+    z-index: -2;
+  }
+
+  .shadow-neon-green {
+    box-shadow: 0 0 20px hsl(var(--matrix) / 0.3);
+  }
+
+  .shadow-neon-pink {
+    box-shadow: 0 0 20px hsl(var(--cyber-pink) / 0.3);
+  }
+
+  .shadow-neon-blue {
+    box-shadow: 0 0 20px hsl(var(--electric) / 0.3);
+  }
+
+  .shadow-cyber {
+    box-shadow: 0 0 30px hsl(var(--matrix) / 0.3), inset 0 0 30px hsl(var(--matrix) / 0.1);
+  }
+}
+
+@layer utilities {
+  .animate-glitch {
+    animation: glitch 2s infinite;
+  }
+
+  .animate-pulse-neon {
+    animation: pulse-neon 2s ease-in-out infinite alternate;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+
+@keyframes pulse-neon {
+  from { 
+    box-shadow: 0 0 20px hsl(var(--matrix) / 0.3);
+  }
+  to { 
+    box-shadow: 0 0 30px hsl(var(--matrix)), 0 0 40px hsl(var(--matrix) / 0.4);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Matrix background effect */
+.matrix-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, hsl(var(--matrix) / 0.05), transparent);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--darker-surface));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--matrix) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--matrix) / 0.5);
+}
