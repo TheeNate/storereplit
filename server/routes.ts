@@ -5,7 +5,12 @@ import Stripe from "stripe";
 import multer from "multer";
 import path from "path";
 import { storage } from "./storage";
-import { insertProductSchema, insertOrderSchema } from "@shared/schema";
+import {
+  insertProductSchema,
+  insertOrderSchema,
+  insertDesignSchema,
+  insertSizeOptionSchema,
+} from "@shared/schema";
 import { sendOrderNotification } from "./sendgrid";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -33,7 +38,7 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all products
+  // Legacy product routes (backward compatibility)
   app.get("/api/products", async (req, res) => {
     try {
       const products = await storage.getAllProducts();
@@ -45,7 +50,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get single product
   app.get("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -58,6 +62,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ message: "Error fetching product: " + error.message });
+    }
+  });
+
+  // NEW: Design routes
+  app.get("/api/designs", async (req, res) => {
+    try {
+      const designs = await storage.getAllDesigns();
+      res.json(designs);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Error fetching designs: " + error.message });
+    }
+  });
+
+  app.get("/api/designs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const design = await storage.getDesign(id);
+      if (!design) {
+        return res.status(404).json({ message: "Design not found" });
+      }
+      res.json(design);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Error fetching design: " + error.message });
+    }
+  });
+
+  // NEW: Size options routes
+  app.get("/api/size-options", async (req, res) => {
+    try {
+      const sizeOptions = await storage.getAllSizeOptions();
+      res.json(sizeOptions);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Error fetching size options: " + error.message });
+    }
+  });
+
+  app.get("/api/size-options/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const sizeOption = await storage.getSizeOption(id);
+      if (!sizeOption) {
+        return res.status(404).json({ message: "Size option not found" });
+      }
+      res.json(sizeOption);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Error fetching size option: " + error.message });
     }
   });
 
@@ -79,7 +137,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create product (admin only)
+  // Admin: Create design
+  app.post("/api/admin/designs", upload.single("image"), async (req, res) => {
+    try {
+      const { title, description, category } = req.body;
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Design image is required" });
+      }
+
+      const imageUrl = `/uploads/${req.file.filename}`;
+
+      const designData = {
+        title,
+        description,
+        category: category || "custom",
+        imageUrl,
+      };
+
+      const validatedData = insertDesignSchema.parse(designData);
+      const design = await storage.createDesign(validatedData);
+
+      res.json(design);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({ message: "Error creating design: " + error.message });
+    }
+  });
+
+  // Admin: Update size option with Stripe IDs
+  app.put("/api/admin/size-options/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { stripeProductId, stripePriceId, price, description } = req.body;
+
+      const updateData: any = {};
+      if (stripeProductId) updateData.stripeProductId = stripeProductId;
+      if (stripePriceId) updateData.stripePriceId = stripePriceId;
+      if (price) updateData.price = price;
+      if (description) updateData.description = description;
+
+      const sizeOption = await storage.updateSizeOption(id, updateData);
+      if (!sizeOption) {
+        return res.status(404).json({ message: "Size option not found" });
+      }
+
+      res.json(sizeOption);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({ message: "Error updating size option: " + error.message });
+    }
+  });
+
+  // Legacy: Create product (admin only)
   app.post("/api/products", upload.single("image"), async (req, res) => {
     try {
       const { title, description, price } = req.body;
@@ -88,8 +200,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Product image is required" });
       }
 
-      // In a real app, you'd upload to cloud storage and get a URL
-      // For this demo, we'll use a placeholder URL
       const imageUrl = `/uploads/${req.file.filename}`;
 
       const productData = {
@@ -110,18 +220,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create payment intent
+  // NEW: Create payment intent for design + size combination
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      const { amount, productId, customerInfo } = req.body;
+      const { designId, sizeOptionId, customerInfo } = req.body;
+
+      console.log("Creating payment intent for design + size:", {
+        designId,
+        sizeOptionId,
+      });
+
+      // Get the size option to determine pricing
+      const sizeOption = await storage.getSizeOption(sizeOptionId);
+      if (!sizeOption) {
+        return res.status(404).json({ message: "Size option not found" });
+      }
 
       // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
-      const chargeAmount = Math.max(Math.round(parseFloat(amount) * 100), 50);
+      const chargeAmount = Math.max(
+        Math.round(parseFloat(sizeOption.price) * 100),
+        50,
+      );
 
       console.log("Creating payment intent:", {
-        amount,
+        amount: sizeOption.price,
         chargeAmount,
-        productId,
+        designId,
+        sizeOptionId,
       });
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -131,7 +256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           enabled: true,
         },
         metadata: {
-          productId: productId.toString(),
+          designId: designId.toString(),
+          sizeOptionId: sizeOptionId.toString(),
           customerName: customerInfo.name,
           customerEmail: customerInfo.email,
         },
@@ -147,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Handle successful payment and create order
+  // NEW: Handle successful payment and create order (updated for design + size)
   app.post("/api/orders", async (req, res) => {
     try {
       console.log("Creating order with data:", req.body);
@@ -178,10 +304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const order = await storage.createOrder(orderData);
       console.log("Order created:", order.id);
 
-      // Get product details for email
-      const product = await storage.getProduct(order.productId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+      // Get design and size option details for email
+      const orderDetails = await storage.getOrderWithDetails(order.id);
+      if (!orderDetails) {
+        return res.status(404).json({ message: "Order details not found" });
       }
 
       // Send email notification to manufacturer
@@ -194,9 +320,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerName: order.customerName,
           customerEmail: order.customerEmail,
           shippingAddress: order.shippingAddress,
-          productTitle: product.title,
-          productDescription: product.description,
-          productImage: product.imageUrl,
+          productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+          productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+          productImage: orderDetails.design?.imageUrl || "",
           amount: order.amount,
           notes: order.notes || undefined,
           orderId: order.id,
@@ -220,15 +346,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get order details
+  // Get order details (updated to include design + size info)
   app.get("/api/orders/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const order = await storage.getOrder(id);
-      if (!order) {
+      const orderDetails = await storage.getOrderWithDetails(id);
+      if (!orderDetails) {
         return res.status(404).json({ message: "Order not found" });
       }
-      res.json(order);
+      res.json(orderDetails);
     } catch (error: any) {
       res
         .status(500)
