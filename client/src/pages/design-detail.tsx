@@ -212,17 +212,7 @@ export default function DesignDetail() {
     );
   }
 
-  const categoryColors = {
-    bitcoin: "bg-matrix text-black",
-    ethereum: "bg-electric text-black",
-    blockchain: "bg-cyber-pink text-black",
-    cypherpunk: "bg-white text-black",
-    custom: "bg-gray-500 text-white",
-  };
 
-  const categoryColor =
-    categoryColors[design.category as keyof typeof categoryColors] ||
-    categoryColors.custom;
 
   return (
     <main className="pt-20 py-20 px-6">
@@ -245,11 +235,7 @@ export default function DesignDetail() {
                 alt={design.title}
                 className="w-full rounded-xl shadow-neon-green"
               />
-              <Badge
-                className={`absolute top-4 right-4 font-mono text-sm ${categoryColor}`}
-              >
-                {design.category?.toUpperCase()}
-              </Badge>
+
             </div>
 
             <div className="space-y-4">

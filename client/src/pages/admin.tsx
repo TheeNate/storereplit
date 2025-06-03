@@ -12,6 +12,7 @@ import {
   Edit,
   Trash2,
   X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -528,6 +535,124 @@ export default function Admin() {
                   </Card>
                 )}
               </TabsContent>
+
+              {/* Design Editing Dialog */}
+              {editingDesign && (
+                <Dialog open={!!editingDesign} onOpenChange={() => cancelEditing()}>
+                  <DialogContent className="glass-morphism max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-display font-bold text-electric">
+                        <Edit className="mr-2 inline" />
+                        EDIT DESIGN
+                      </DialogTitle>
+                    </DialogHeader>
+                    <Form {...editDesignForm}>
+                      <form onSubmit={editDesignForm.handleSubmit(onEditDesign)} className="space-y-6">
+                        <FormField
+                          control={editDesignForm.control}
+                          name="image"
+                          render={({ field: { onChange, value, ...rest } }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                NEW IMAGE (Optional)
+                              </FormLabel>
+                              <FormControl>
+                                <div className="space-y-4">
+                                  <Input
+                                    {...rest}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => onChange(e.target.files)}
+                                  />
+                                  <Button
+                                    type="button"
+                                    className="cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono"
+                                    onClick={() =>
+                                      document
+                                        .querySelector('input[type="file"]')
+                                        ?.click()
+                                    }
+                                  >
+                                    BROWSE FILES
+                                  </Button>
+                                  <div className="text-xs text-gray-400 font-mono">
+                                    Leave empty to keep current image
+                                  </div>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-1 gap-6">
+                          <FormField
+                            control={editDesignForm.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  DESIGN TITLE *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                    placeholder="Genesis Block"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={editDesignForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                DESCRIPTION *
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                  placeholder="A stunning glass representation of the first Bitcoin block..."
+                                  rows={4}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="flex space-x-4">
+                          <Button
+                            type="submit"
+                            disabled={editDesignMutation.isPending}
+                            className="flex-1 cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono"
+                          >
+                            {editDesignMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            UPDATE DESIGN
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={cancelEditing}
+                            className="flex-1 cyber-border text-gray-400 border-gray-400 hover:bg-gray-400 hover:text-black font-mono"
+                          >
+                            CANCEL
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              )}
 
               {/* Size Options Tab */}
               <TabsContent value="sizes" className="space-y-6">
