@@ -9,7 +9,6 @@ export function Header() {
   const navigation = [
     { name: "PRODUCTS", href: "/" },
     { name: "CUSTOM", href: "/create" },
-    { name: "ADMIN", href: "/admin" },
   ];
 
   return (
