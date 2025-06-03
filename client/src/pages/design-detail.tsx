@@ -1,0 +1,659 @@
+import { useState } from "react";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Elements,
+  useStripe,
+  useElements,
+  PaymentElement,
+} from "@stripe/react-stripe-js";
+import { CreditCard, UserRound, ArrowLeft, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { stripePromise } from "@/lib/stripe";
+import { apiRequest } from "@/lib/queryClient";
+import type { Design, SizeOption } from "@shared/schema";
+import { z } from "zod";
+
+const orderSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  address: z.string().min(10, "Complete address is required"),
+  notes: z.string().optional(),
+});
+
+type OrderForm = z.infer<typeof orderSchema>;
+
+export default function DesignDetail() {
+  const params = useParams();
+  const [, setLocation] = useLocation();
+  const designId = parseInt(params.id || "0");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
+  const [clientSecret, setClientSecret] = useState("");
+
+  const { data: design, isLoading: designLoading } = useQuery<Design>({
+    queryKey: [`/api/designs/${designId}`],
+    enabled: !!designId,
+  });
+
+  const { data: sizeOptions, isLoading: sizesLoading } = useQuery<SizeOption[]>(
+    {
+      queryKey: ["/api/size-options"],
+    },
+  );
+
+  const form = useForm<OrderForm>({
+    resolver: zodResolver(orderSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      address: "",
+      notes: "",
+    },
+  });
+
+  const createPaymentIntentMutation = useMutation({
+    mutationFn: async (data: OrderForm) => {
+      console.log("Creating payment intent for design + size:", {
+        designId,
+        sizeOptionId: selectedSizeId,
+      });
+      const response = await apiRequest("POST", "/api/create-payment-intent", {
+        designId,
+        sizeOptionId: selectedSizeId,
+        customerInfo: data,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log("Payment intent created successfully:", data);
+      setClientSecret(data.clientSecret);
+    },
+    onError: (error: any) => {
+      console.error("Payment intent creation failed:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      console.log("SENDING ORDER DATA TO API:", orderData);
+      const response = await apiRequest("POST", "/api/orders", orderData);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Order creation failed' }));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.json();
+    },
+    onSuccess: (order) => {
+      console.log("Order created successfully:", order);
+      toast({
+        title: "Order Created",
+        description: "Your custom glass art is in production!",
+      });
+      setLocation(`/success?orderId=${order.id}`);
+    },
+    onError: (error: any) => {
+      console.error("Order creation failed:", error);
+      toast({
+        title: "Order Failed", 
+        description: error.message || "Failed to create order. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: OrderForm) => {
+    if (!design || !selectedSizeId) {
+      toast({
+        title: "Selection Required",
+        description: "Please select a size before proceeding",
+        variant: "destructive",
+      });
+      return;
+    }
+    console.log("Form submitted with:", data);
+    console.log("Design:", design, "Selected size:", selectedSizeId);
+    createPaymentIntentMutation.mutate(data);
+  };
+
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    console.log("=== PAYMENT SUCCESS HANDLER CALLED ===");
+    console.log("Payment Intent ID:", paymentIntentId);
+    console.log("Design:", design, "Size ID:", selectedSizeId);
+
+    if (!design || !selectedSizeId) {
+      console.error("Missing design or size selection");
+      return;
+    }
+
+    const selectedSize = sizeOptions?.find(
+      (size) => size.id === selectedSizeId,
+    );
+    if (!selectedSize) {
+      console.error("Selected size option not found");
+      return;
+    }
+
+    const formData = form.getValues();
+    console.log("Form data:", formData);
+
+    const orderData = {
+      designId: design.id,
+      sizeOptionId: selectedSizeId,
+      customerName: formData.name,
+      customerEmail: formData.email,
+      shippingAddress: formData.address,
+      notes: formData.notes || "",
+      amount: selectedSize.price,
+      stripePaymentIntentId: paymentIntentId,
+    };
+
+    console.log("CREATING ORDER WITH DATA:", orderData);
+
+    try {
+      await createOrderMutation.mutateAsync(orderData);
+    } catch (error) {
+      console.error("Error in handlePaymentSuccess:", error);
+    }
+  };
+
+  const selectedSize = sizeOptions?.find((size) => size.id === selectedSizeId);
+
+  if (designLoading || sizesLoading) {
+    return (
+      <div className="min-h-screen pt-20 flex items-center justify-center">
+        <div className="animate-spin w-16 h-16 border-4 border-matrix border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!design) {
+    return (
+      <div className="min-h-screen pt-20 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-display font-bold text-matrix mb-4">
+            Design Not Found
+          </h1>
+          <p className="text-gray-400 font-mono">
+            The requested design does not exist.
+          </p>
+          <Button
+            className="mt-4 cyber-border font-mono"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="mr-2" size={16} />
+            BACK TO GALLERY
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const categoryColors = {
+    bitcoin: "bg-matrix text-black",
+    ethereum: "bg-electric text-black",
+    blockchain: "bg-cyber-pink text-black",
+    cypherpunk: "bg-white text-black",
+    custom: "bg-gray-500 text-white",
+  };
+
+  const categoryColor =
+    categoryColors[design.category as keyof typeof categoryColors] ||
+    categoryColors.custom;
+
+  return (
+    <main className="pt-20 py-20 px-6">
+      <div className="container mx-auto max-w-7xl">
+        {/* Back Button */}
+        <Button
+          className="mb-8 cyber-border font-mono"
+          onClick={() => setLocation("/")}
+        >
+          <ArrowLeft className="mr-2" size={16} />
+          BACK TO GALLERY
+        </Button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Design Image & Info */}
+          <div className="space-y-6">
+            <div className="relative">
+              <img
+                src={design.imageUrl}
+                alt={design.title}
+                className="w-full rounded-xl shadow-neon-green"
+              />
+              <Badge
+                className={`absolute top-4 right-4 font-mono text-sm ${categoryColor}`}
+              >
+                {design.category?.toUpperCase()}
+              </Badge>
+            </div>
+
+            <div className="space-y-4">
+              <h1 className="text-4xl font-display font-bold text-matrix">
+                {design.title}
+              </h1>
+              <p className="text-gray-300 leading-relaxed font-mono text-lg">
+                {design.description}
+              </p>
+            </div>
+
+            {/* Size Comparison Visual */}
+            <Card className="glass-morphism">
+              <CardHeader>
+                <CardTitle className="text-xl font-display font-bold text-electric">
+                  SIZE COMPARISON
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end justify-center gap-4 py-6">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-matrix rounded border-2 border-matrix mb-2" />
+                    <p className="text-matrix font-mono text-sm font-bold">
+                      6"
+                    </p>
+                    <p className="text-gray-400 text-xs">Compact</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-electric rounded border-2 border-electric mb-2" />
+                    <p className="text-electric font-mono text-sm font-bold">
+                      12"
+                    </p>
+                    <p className="text-gray-400 text-xs">Medium</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-28 h-28 bg-cyber-pink rounded border-2 border-cyber-pink mb-2" />
+                    <p className="text-cyber-pink font-mono text-sm font-bold">
+                      15"
+                    </p>
+                    <p className="text-gray-400 text-xs">Statement</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Size Selection & Order Form */}
+          <div className="space-y-8">
+            {/* Size Selection */}
+            <Card className="glass-morphism">
+              <CardHeader>
+                <CardTitle className="text-2xl font-display font-bold text-matrix">
+                  SELECT YOUR SIZE
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sizeOptions && sizeOptions.length > 0 ? (
+                  <div className="space-y-4">
+                    {sizeOptions.map((sizeOption) => (
+                      <div
+                        key={sizeOption.id}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedSizeId === sizeOption.id
+                            ? "border-matrix bg-matrix/10 shadow-neon-green"
+                            : "border-gray-600 hover:border-matrix/50"
+                        }`}
+                        onClick={() => setSelectedSizeId(sizeOption.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                selectedSizeId === sizeOption.id
+                                  ? "border-matrix bg-matrix"
+                                  : "border-gray-600"
+                              }`}
+                            >
+                              {selectedSizeId === sizeOption.id && (
+                                <Check className="w-4 h-4 text-black" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-white font-mono font-bold text-lg">
+                                {sizeOption.name}
+                              </h3>
+                              <p className="text-gray-400 text-sm">
+                                {sizeOption.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-matrix font-mono font-bold text-2xl">
+                              ${parseFloat(sizeOption.price).toFixed(0)}
+                            </p>
+                            <p className="text-gray-400 text-sm">USD</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 font-mono text-center py-8">
+                    Size options not available. Please contact support.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Customer Order Form */}
+            {selectedSizeId && (
+              <Card className="glass-morphism">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-display font-bold text-electric flex items-center">
+                    <UserRound className="mr-2" size={24} />
+                    CUSTOMER INFORMATION
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Form {...form}>
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-6"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                NAME *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                  placeholder="Satoshi Nakamoto"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                EMAIL *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="email"
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                  placeholder="satoshi@bitcoin.org"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-matrix font-mono text-sm">
+                              SHIPPING ADDRESS *
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green h-24"
+                                placeholder="123 Blockchain Ave&#10;Crypto City, CC 12345&#10;Digital Nation"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-matrix font-mono text-sm">
+                              SPECIAL INSTRUCTIONS
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green h-20"
+                                placeholder="Any custom engraving requests or special handling notes..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {!clientSecret && (
+                        <Button
+                          type="submit"
+                          className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+                          disabled={
+                            createPaymentIntentMutation.isPending ||
+                            !selectedSizeId
+                          }
+                        >
+                          <CreditCard className="mr-2" size={20} />
+                          {createPaymentIntentMutation.isPending
+                            ? "PREPARING..."
+                            : `PAY WITH STRIPE - $${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}`}
+                        </Button>
+                      )}
+
+                      {clientSecret && (
+                        <Elements
+                          stripe={stripePromise}
+                          options={{ clientSecret }}
+                        >
+                          <StripeCheckoutForm
+                            onSuccess={handlePaymentSuccess}
+                            amount={
+                              selectedSize
+                                ? parseFloat(selectedSize.price).toFixed(0)
+                                : "0"
+                            }
+                            designTitle={design.title}
+                            sizeName={selectedSize?.name || ""}
+                          />
+                        </Elements>
+                      )}
+
+                      <p className="text-xs text-gray-500 font-mono text-center">
+                        Secure payment powered by Stripe. Your custom glass art
+                        will be handcrafted and shipped within 2-3 weeks.
+                      </p>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// Enhanced Stripe checkout form with order summary
+function StripeCheckoutForm({
+  onSuccess,
+  amount,
+  designTitle,
+  sizeName,
+}: {
+  onSuccess: (paymentIntentId: string) => void;
+  amount: string;
+  designTitle: string;
+  sizeName: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      console.error("Stripe or Elements not loaded");
+      toast({
+        title: "Payment Error",
+        description: "Payment system not ready. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    console.log("Starting payment confirmation...");
+
+    try {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        console.error("Error submitting payment element:", submitError);
+        toast({
+          title: "Payment Error",
+          description:
+            submitError.message || "Error submitting payment information",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log("Payment element submitted successfully");
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/success`,
+        },
+        redirect: "if_required",
+      });
+
+      console.log("Payment confirmation result:", { error, paymentIntent });
+
+      if (error) {
+        console.error("Payment confirmation error:", error);
+        toast({
+          title: "Payment Failed",
+          description: error.message || "Payment could not be processed",
+          variant: "destructive",
+        });
+      } else if (paymentIntent) {
+        console.log(
+          "Payment successful:",
+          paymentIntent.id,
+          "Status:",
+          paymentIntent.status,
+        );
+
+        if (paymentIntent.status === "succeeded") {
+          console.log(
+            "Payment succeeded, calling onSuccess with:",
+            paymentIntent.id,
+          );
+          await onSuccess(paymentIntent.id);
+        } else {
+          console.log("Payment not succeeded, status:", paymentIntent.status);
+          toast({
+            title: "Payment Incomplete",
+            description: `Payment status: ${paymentIntent.status}`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("No payment intent returned");
+        toast({
+          title: "Payment Error",
+          description: "No payment confirmation received",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Unexpected error during payment:", err);
+      toast({
+        title: "Payment Error",
+        description: "An unexpected error occurred during payment",
+        variant: "destructive",
+      });
+    }
+
+    setIsProcessing(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Order Summary */}
+      <div className="bg-darker-surface rounded-lg p-4 border border-matrix/30">
+        <h3 className="text-matrix font-mono font-bold mb-3">ORDER SUMMARY</h3>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-white font-mono">{designTitle}</p>
+            <p className="text-gray-400 text-sm">{sizeName}</p>
+          </div>
+          <p className="text-matrix font-mono font-bold text-xl">${amount}</p>
+        </div>
+      </div>
+
+      {/* Payment Element */}
+      <div className="p-4 bg-darker-surface rounded-lg border border-matrix/30">
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            paymentMethodOrder: ["card"],
+          }}
+          onReady={() => {
+            console.log("PaymentElement is ready");
+          }}
+          onChange={(event) => {
+            console.log("PaymentElement changed:", event);
+            if (event.error) {
+              console.error("PaymentElement error:", event.error);
+            }
+          }}
+        />
+      </div>
+
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!stripe || !elements || isProcessing}
+        className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+      >
+        {isProcessing ? "PROCESSING..." : `COMPLETE ORDER - $${amount}`}
+      </Button>
+    </div>
+  );
+}
