@@ -39,10 +39,17 @@ const authSchema = z.object({
 const designSchema = z.object({
   title: z.string().min(1, "Design title is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  category: z.string().min(1, "Category is required"),
   image: z
     .any()
     .refine((files) => files?.length > 0, "Design image is required"),
+});
+
+const editDesignSchema = z.object({
+  title: z.string().min(1, "Design title is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  image: z
+    .any()
+    .optional(),
 });
 
 const sizeOptionUpdateSchema = z.object({
@@ -66,12 +73,21 @@ export default function Admin() {
     defaultValues: { password: "" },
   });
 
+  const [editingDesign, setEditingDesign] = useState<Design | null>(null);
+
   const designForm = useForm<DesignForm>({
     resolver: zodResolver(designSchema),
     defaultValues: {
       title: "",
       description: "",
-      category: "",
+    },
+  });
+
+  const editDesignForm = useForm<z.infer<typeof editDesignSchema>>({
+    resolver: zodResolver(editDesignSchema),
+    defaultValues: {
+      title: "",
+      description: "",
     },
   });
 
