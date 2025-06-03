@@ -99,6 +99,12 @@ export default function DesignDetail() {
     mutationFn: async (orderData: any) => {
       console.log("SENDING ORDER DATA TO API:", orderData);
       const response = await apiRequest("POST", "/api/orders", orderData);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Order creation failed' }));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       return response.json();
     },
     onSuccess: (order) => {
@@ -112,8 +118,8 @@ export default function DesignDetail() {
     onError: (error: any) => {
       console.error("Order creation failed:", error);
       toast({
-        title: "Order Failed",
-        description: error.message,
+        title: "Order Failed", 
+        description: error.message || "Failed to create order. Please try again.",
         variant: "destructive",
       });
     },
