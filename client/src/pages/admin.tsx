@@ -10,6 +10,8 @@ import {
   Palette,
   DollarSign,
   Edit,
+  Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,7 +130,6 @@ export default function Admin() {
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("category", data.category);
       formData.append("image", data.image[0]);
 
       const response = await fetch("/api/admin/designs", {
@@ -155,6 +156,69 @@ export default function Admin() {
     onError: (error: any) => {
       toast({
         title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editDesignMutation = useMutation({
+    mutationFn: async (data: { id: number; formData: FormData }) => {
+      const response = await fetch(`/api/admin/designs/${data.id}`, {
+        method: "PUT",
+        body: data.formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Design Updated",
+        description: "Design has been successfully updated",
+      });
+      setEditingDesign(null);
+      editDesignForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDesignMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/admin/designs/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Design Deleted",
+        description: "Design has been removed from the gallery",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -198,6 +262,30 @@ export default function Admin() {
 
   const onDesignUpload = (data: DesignForm) => {
     designUploadMutation.mutate(data);
+  };
+
+  const onEditDesign = (data: z.infer<typeof editDesignSchema>) => {
+    if (!editingDesign) return;
+    
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    if (data.image && data.image.length > 0) {
+      formData.append("image", data.image[0]);
+    }
+    
+    editDesignMutation.mutate({ id: editingDesign.id, formData });
+  };
+
+  const startEditing = (design: Design) => {
+    setEditingDesign(design);
+    editDesignForm.setValue("title", design.title);
+    editDesignForm.setValue("description", design.description);
+  };
+
+  const cancelEditing = () => {
+    setEditingDesign(null);
+    editDesignForm.reset();
   };
 
   return (
@@ -353,25 +441,7 @@ export default function Admin() {
                               </FormItem>
                             )}
                           />
-                          <FormField
-                            control={designForm.control}
-                            name="category"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-matrix font-mono text-sm">
-                                  CATEGORY *
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
-                                    placeholder="bitcoin"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+
                         </div>
 
                         <FormField
@@ -432,12 +502,25 @@ export default function Admin() {
                             <h3 className="text-white font-mono font-bold mb-2">
                               {design.title}
                             </h3>
-                            <p className="text-gray-400 text-sm mb-2">
-                              {design.category}
-                            </p>
-                            <p className="text-gray-300 text-xs">
+                            <p className="text-gray-300 text-xs mb-4">
                               {design.description}
                             </p>
+                            <div className="flex space-x-2">
+                              <Button
+                                onClick={() => startEditing(design)}
+                                className="flex-1 cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono text-xs"
+                              >
+                                <Edit className="mr-1" size={12} />
+                                EDIT
+                              </Button>
+                              <Button
+                                onClick={() => deleteDesignMutation.mutate(design.id)}
+                                className="flex-1 cyber-border text-red-400 border-red-400 hover:bg-red-400 hover:text-black font-mono text-xs"
+                              >
+                                <Trash2 className="mr-1" size={12} />
+                                DELETE
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
