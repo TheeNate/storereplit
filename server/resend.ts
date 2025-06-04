@@ -1,12 +1,10 @@
-// Replace the entire server/sendgrid.ts file
+import { Resend } from 'resend';
 
-import sgMail from '@sendgrid/mail';
-
-if (!process.env.SENDGRID_API_KEY) {
-  throw new Error("SENDGRID_API_KEY environment variable must be set");
+if (!process.env.RESEND_API_KEY) {
+  throw new Error("RESEND_API_KEY environment variable must be set");
 }
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface OrderEmailParams {
   customerName: string;
@@ -20,14 +18,14 @@ interface OrderEmailParams {
   orderId: number;
 }
 
-// Send notification to manufacturer (existing function)
+// Send notification to manufacturer
 export async function sendOrderNotification(params: OrderEmailParams): Promise<boolean> {
   try {
-    const manufacturerEmail = process.env.MANUFACTURER_EMAIL || 'theee@btcglass.store';
+    const manufacturerEmail = 'theee@btcglass.store';
 
-    const msg = {
-      to: manufacturerEmail,
-      from: process.env.FROM_EMAIL || 'theee@btcglass.store',
+    const { data, error } = await resend.emails.send({
+      from: 'BTC Glass <orders@btcglass.store>',
+      to: [manufacturerEmail],
       subject: `New BTC Glass Order #${params.orderId} - ${params.productTitle}`,
       html: `
         <div style="font-family: 'JetBrains Mono', monospace; background-color: #0A0A0A; color: #ffffff; padding: 20px;">
@@ -38,7 +36,7 @@ export async function sendOrderNotification(params: OrderEmailParams): Promise<b
 
             <div style="background-color: #111111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h2 style="color: #00D4FF; margin-top: 0;">ORDER DETAILS</h2>
-              <p><strong style="color: #00FF88;">Order ID:</strong> #BTC-GLASS-${params.orderId}</p>
+              <p><strong style="color: #00FF88;">Order ID:</strong> #BTC-GLASS-${params.orderId.toString().padStart(6, '0')}</p>
               <p><strong style="color: #00FF88;">Product:</strong> ${params.productTitle}</p>
               <p><strong style="color: #00FF88;">Amount:</strong> $${params.amount}</p>
               <p><strong style="color: #00FF88;">Description:</strong> ${params.productDescription}</p>
@@ -64,23 +62,27 @@ export async function sendOrderNotification(params: OrderEmailParams): Promise<b
           </div>
         </div>
       `,
-    };
+    });
 
-    await sgMail.send(msg);
-    console.log('Order notification email sent successfully to manufacturer');
+    if (error) {
+      console.error('Resend order notification error:', error);
+      return false;
+    }
+
+    console.log('Order notification email sent successfully to manufacturer via Resend');
     return true;
   } catch (error) {
-    console.error('SendGrid manufacturer email error:', error);
+    console.error('Resend manufacturer email error:', error);
     return false;
   }
 }
 
-// NEW: Send confirmation to customer
+// Send confirmation to customer
 export async function sendCustomerOrderConfirmation(params: OrderEmailParams): Promise<boolean> {
   try {
-    const msg = {
-      to: params.customerEmail,
-      from: process.env.FROM_EMAIL || 'orders@btcglass.art',
+    const { data, error } = await resend.emails.send({
+      from: 'BTC Glass <orders@btcglass.store>',
+      to: [params.customerEmail],
       subject: `Order Confirmed #${params.orderId} - ${params.productTitle} | BTC Glass`,
       html: `
         <div style="font-family: 'JetBrains Mono', monospace; background-color: #0A0A0A; color: #ffffff; padding: 20px;">
@@ -121,7 +123,7 @@ export async function sendCustomerOrderConfirmation(params: OrderEmailParams): P
               <p style="color: #00FF88; font-size: 16px; margin-bottom: 15px;">
                 Questions about your order?
               </p>
-              <p style="color: #ffffff; margin: 5px 0;">📧 orders@btcglass.art</p>
+              <p style="color: #ffffff; margin: 5px 0;">📧 theee@btcglass.store</p>
               <p style="color: #ffffff; margin: 5px 0;">💬 Reference Order #BTC-GLASS-${params.orderId.toString().padStart(6, '0')}</p>
             </div>
 
@@ -134,13 +136,17 @@ export async function sendCustomerOrderConfirmation(params: OrderEmailParams): P
           </div>
         </div>
       `,
-    };
+    });
 
-    await sgMail.send(msg);
-    console.log('Customer order confirmation email sent successfully');
+    if (error) {
+      console.error('Resend customer confirmation error:', error);
+      return false;
+    }
+
+    console.log('Customer order confirmation email sent successfully via Resend');
     return true;
   } catch (error) {
-    console.error('SendGrid customer email error:', error);
+    console.error('Resend customer email error:', error);
     return false;
   }
 }

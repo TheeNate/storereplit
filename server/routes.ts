@@ -11,7 +11,7 @@ import {
   insertDesignSchema,
   insertSizeOptionSchema,
 } from "@shared/schema";
-import { sendOrderNotification } from "./sendgrid";
+import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
@@ -314,6 +314,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Replace the order creation section in server/routes.ts (around line 200)
+  // Find the section that starts with "// NEW: Handle successful payment and create order"
+
   // NEW: Handle successful payment and create order (updated for design + size)
   app.post("/api/orders", async (req, res) => {
     try {
@@ -342,12 +345,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (paymentIntent.status !== "succeeded") {
             console.warn(`Payment not fully completed. Status: ${paymentIntent.status}`);
             // Don't fail the order creation for non-succeeded payments in testing
-            // In production, you might want to be stricter here
           }
         } catch (stripeError: any) {
           console.error("Error verifying payment intent:", stripeError);
-          // Log the error but don't fail the order creation
-          // This allows testing with mock payment intents
           console.warn("Proceeding with order creation despite payment verification error");
         }
       }
@@ -361,26 +361,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Order details not found" });
       }
 
-      // Send email notification to manufacturer
-      const manufacturerEmail =
-        process.env.MANUFACTURER_EMAIL || "manufacturer@btcglass.art";
+      // Prepare email data
+      const emailData = {
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        shippingAddress: order.shippingAddress,
+        productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+        productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+        productImage: orderDetails.design?.imageUrl || "",
+        amount: order.amount,
+        notes: order.notes || undefined,
+        orderId: order.id,
+      };
 
+      // Send both emails
       try {
-        await sendOrderNotification({
-          to: manufacturerEmail,
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          shippingAddress: order.shippingAddress,
-          productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
-          productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
-          productImage: orderDetails.design?.imageUrl || "",
-          amount: order.amount,
-          notes: order.notes || undefined,
-          orderId: order.id,
-        });
-        console.log("Order notification email sent");
+        // Send manufacturer notification
+        const manufacturerEmailSent = await sendOrderNotification(emailData);
+
+        // Send customer confirmation
+        const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+
+        if (manufacturerEmailSent) {
+          console.log("✅ Manufacturer notification email sent");
+        } else {
+          console.error("❌ Failed to send manufacturer email");
+        }
+
+        if (customerEmailSent) {
+          console.log("✅ Customer confirmation email sent");
+        } else {
+          console.error("❌ Failed to send customer email");
+        }
+
       } catch (emailError: any) {
-        console.error("Error sending email:", emailError);
+        console.error("Error sending emails:", emailError);
         // Don't fail the order creation if email fails
       }
 
