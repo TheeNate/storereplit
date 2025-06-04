@@ -95,16 +95,18 @@ export default function DesignDetail() {
     },
   });
 
+  // Replace the createOrderMutation in design-detail.tsx (around line 69)
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       console.log("SENDING ORDER DATA TO API:", orderData);
       const response = await apiRequest("POST", "/api/orders", orderData);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Order creation failed' }));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       return response.json();
     },
     onSuccess: (order) => {
@@ -113,7 +115,10 @@ export default function DesignDetail() {
         title: "Order Created",
         description: "Your custom glass art is in production!",
       });
-      setLocation(`/success?orderId=${order.id}`);
+      // Fix: Ensure the orderId parameter is properly added to the URL
+      const successUrl = `/success?orderId=${order.id}`;
+      console.log("Redirecting to:", successUrl);
+      setLocation(successUrl);
     },
     onError: (error: any) => {
       console.error("Order creation failed:", error);
@@ -212,17 +217,7 @@ export default function DesignDetail() {
     );
   }
 
-  const categoryColors = {
-    bitcoin: "bg-matrix text-black",
-    ethereum: "bg-electric text-black",
-    blockchain: "bg-cyber-pink text-black",
-    cypherpunk: "bg-white text-black",
-    custom: "bg-gray-500 text-white",
-  };
 
-  const categoryColor =
-    categoryColors[design.category as keyof typeof categoryColors] ||
-    categoryColors.custom;
 
   return (
     <main className="pt-20 py-20 px-6">
@@ -245,11 +240,7 @@ export default function DesignDetail() {
                 alt={design.title}
                 className="w-full rounded-xl shadow-neon-green"
               />
-              <Badge
-                className={`absolute top-4 right-4 font-mono text-sm ${categoryColor}`}
-              >
-                {design.category?.toUpperCase()}
-              </Badge>
+
             </div>
 
             <div className="space-y-4">
@@ -261,39 +252,7 @@ export default function DesignDetail() {
               </p>
             </div>
 
-            {/* Size Comparison Visual */}
-            <Card className="glass-morphism">
-              <CardHeader>
-                <CardTitle className="text-xl font-display font-bold text-electric">
-                  SIZE COMPARISON
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-center gap-4 py-6">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-matrix rounded border-2 border-matrix mb-2" />
-                    <p className="text-matrix font-mono text-sm font-bold">
-                      6"
-                    </p>
-                    <p className="text-gray-400 text-xs">Compact</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-electric rounded border-2 border-electric mb-2" />
-                    <p className="text-electric font-mono text-sm font-bold">
-                      12"
-                    </p>
-                    <p className="text-gray-400 text-xs">Medium</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-28 h-28 bg-cyber-pink rounded border-2 border-cyber-pink mb-2" />
-                    <p className="text-cyber-pink font-mono text-sm font-bold">
-                      15"
-                    </p>
-                    <p className="text-gray-400 text-xs">Statement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Size Selection & Order Form */}

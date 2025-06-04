@@ -3,7 +3,8 @@ import { Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Design } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import type { Design, SizeOption } from "@shared/schema";
 
 interface DesignCardProps {
   design: Design;
@@ -18,34 +19,25 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
     blue: "hover:shadow-neon-blue group-hover:text-electric group-hover:border-electric",
   };
 
-  const categoryColors = {
-    bitcoin: "bg-matrix text-black",
-    ethereum: "bg-electric text-black",
-    blockchain: "bg-cyber-pink text-black",
-    cypherpunk: "bg-white text-black",
-    custom: "bg-gray-500 text-white",
-  };
+  const { data: sizeOptions } = useQuery<SizeOption[]>({
+    queryKey: ["/api/size-options"],
+  });
 
-  const categoryColor =
-    categoryColors[design.category as keyof typeof categoryColors] ||
-    categoryColors.custom;
+
 
   return (
-    <Card
-      className={`group glass-morphism ${hoverClasses[hoverColor]} transition-all duration-500 transform hover:-translate-y-2`}
-    >
-      <CardContent className="p-6">
+    <Link href={`/design/${design.id}`} className="block">
+      <Card
+        className={`group glass-morphism ${hoverClasses[hoverColor]} transition-all duration-500 transform hover:-translate-y-2 cursor-pointer`}
+      >
+        <CardContent className="p-6">
         <div className="relative mb-6">
           <img
             src={design.imageUrl}
             alt={design.title}
             className="w-full h-64 object-cover rounded-lg group-hover:scale-105 transition-transform"
           />
-          <Badge
-            className={`absolute top-2 right-2 font-mono text-xs ${categoryColor}`}
-          >
-            {design.category?.toUpperCase()}
-          </Badge>
+
         </div>
 
         <div className="space-y-4">
@@ -59,31 +51,38 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
           </p>
 
           {/* Pricing Preview */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-matrix font-mono text-sm font-bold">6"</p>
-              <p className="text-white text-xs">$149</p>
-            </div>
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-electric font-mono text-sm font-bold">12"</p>
-              <p className="text-white text-xs">$299</p>
-            </div>
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-cyber-pink font-mono text-sm font-bold">15"</p>
-              <p className="text-white text-xs">$449</p>
-            </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {sizeOptions && sizeOptions.length > 0 ? (
+              sizeOptions.map((sizeOption, index) => {
+                const colorClasses = [
+                  "bg-darker-surface text-matrix",
+                  "bg-darker-surface text-electric", 
+                  "bg-darker-surface text-matrix",
+                  "bg-cyber-pink text-black"
+                ];
+                const colorClass = colorClasses[index] || "bg-darker-surface text-white";
+                
+                return (
+                  <div key={sizeOption.id} className={`${colorClass} rounded p-2`}>
+                    <p className="font-mono text-sm font-bold">{sizeOption.size}</p>
+                    <p className="text-xs">${sizeOption.price}</p>
+                  </div>
+                );
+              })
+            ) : (
+              // Loading fallback showing 4 placeholder boxes
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-darker-surface rounded p-2">
+                  <p className="text-gray-400 font-mono text-sm font-bold">--</p>
+                  <p className="text-gray-400 text-xs">Loading...</p>
+                </div>
+              ))
+            )}
           </div>
 
-          <Link href={`/design/${design.id}`}>
-            <Button
-              className={`w-full cyber-border ${hoverClasses[hoverColor]} font-mono`}
-            >
-              <Palette className="mr-2" size={16} />
-              SELECT SIZE & ORDER
-            </Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

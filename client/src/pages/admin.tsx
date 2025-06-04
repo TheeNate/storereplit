@@ -10,6 +10,9 @@ import {
   Palette,
   DollarSign,
   Edit,
+  Trash2,
+  X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +20,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,10 +48,15 @@ const authSchema = z.object({
 const designSchema = z.object({
   title: z.string().min(1, "Design title is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  category: z.string().min(1, "Category is required"),
   image: z
     .any()
     .refine((files) => files?.length > 0, "Design image is required"),
+});
+
+const editDesignSchema = z.object({
+  title: z.string().min(1, "Design title is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  image: z.any().optional(),
 });
 
 const sizeOptionUpdateSchema = z.object({
@@ -66,12 +80,21 @@ export default function Admin() {
     defaultValues: { password: "" },
   });
 
+  const [editingDesign, setEditingDesign] = useState<Design | null>(null);
+
   const designForm = useForm<DesignForm>({
     resolver: zodResolver(designSchema),
     defaultValues: {
       title: "",
       description: "",
-      category: "",
+    },
+  });
+
+  const editDesignForm = useForm<z.infer<typeof editDesignSchema>>({
+    resolver: zodResolver(editDesignSchema),
+    defaultValues: {
+      title: "",
+      description: "",
     },
   });
 
@@ -112,7 +135,6 @@ export default function Admin() {
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("category", data.category);
       formData.append("image", data.image[0]);
 
       const response = await fetch("/api/admin/designs", {
@@ -139,6 +161,69 @@ export default function Admin() {
     onError: (error: any) => {
       toast({
         title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editDesignMutation = useMutation({
+    mutationFn: async (data: { id: number; formData: FormData }) => {
+      const response = await fetch(`/api/admin/designs/${data.id}`, {
+        method: "PUT",
+        body: data.formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Design Updated",
+        description: "Design has been successfully updated",
+      });
+      setEditingDesign(null);
+      editDesignForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDesignMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/admin/designs/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Design Deleted",
+        description: "Design has been removed from the gallery",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -182,6 +267,30 @@ export default function Admin() {
 
   const onDesignUpload = (data: DesignForm) => {
     designUploadMutation.mutate(data);
+  };
+
+  const onEditDesign = (data: z.infer<typeof editDesignSchema>) => {
+    if (!editingDesign) return;
+
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    if (data.image && data.image.length > 0) {
+      formData.append("image", data.image[0]);
+    }
+
+    editDesignMutation.mutate({ id: editingDesign.id, formData });
+  };
+
+  const startEditing = (design: Design) => {
+    setEditingDesign(design);
+    editDesignForm.setValue("title", design.title);
+    editDesignForm.setValue("description", design.description);
+  };
+
+  const cancelEditing = () => {
+    setEditingDesign(null);
+    editDesignForm.reset();
   };
 
   return (
@@ -337,25 +446,6 @@ export default function Admin() {
                               </FormItem>
                             )}
                           />
-                          <FormField
-                            control={designForm.control}
-                            name="category"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-matrix font-mono text-sm">
-                                  CATEGORY *
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
-                                    placeholder="bitcoin"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                         </div>
 
                         <FormField
@@ -416,12 +506,27 @@ export default function Admin() {
                             <h3 className="text-white font-mono font-bold mb-2">
                               {design.title}
                             </h3>
-                            <p className="text-gray-400 text-sm mb-2">
-                              {design.category}
-                            </p>
-                            <p className="text-gray-300 text-xs">
+                            <p className="text-gray-300 text-xs mb-4">
                               {design.description}
                             </p>
+                            <div className="flex space-x-2">
+                              <Button
+                                onClick={() => startEditing(design)}
+                                className="flex-1 cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono text-xs"
+                              >
+                                <Edit className="mr-1" size={12} />
+                                EDIT
+                              </Button>
+                              <Button
+                                onClick={() =>
+                                  deleteDesignMutation.mutate(design.id)
+                                }
+                                className="flex-1 cyber-border text-red-400 border-red-400 hover:bg-red-400 hover:text-black font-mono text-xs"
+                              >
+                                <Trash2 className="mr-1" size={12} />
+                                DELETE
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -429,6 +534,130 @@ export default function Admin() {
                   </Card>
                 )}
               </TabsContent>
+
+              {/* Design Editing Dialog */}
+              {editingDesign && (
+                <Dialog
+                  open={!!editingDesign}
+                  onOpenChange={() => cancelEditing()}
+                >
+                  <DialogContent className="glass-morphism max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-display font-bold text-electric">
+                        <Edit className="mr-2 inline" />
+                        EDIT DESIGN
+                      </DialogTitle>
+                    </DialogHeader>
+                    <Form {...editDesignForm}>
+                      <form
+                        onSubmit={editDesignForm.handleSubmit(onEditDesign)}
+                        className="space-y-6"
+                      >
+                        <FormField
+                          control={editDesignForm.control}
+                          name="image"
+                          render={({ field: { onChange, value, ...rest } }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                NEW IMAGE (Optional)
+                              </FormLabel>
+                              <FormControl>
+                                <div className="space-y-4">
+                                  <Input
+                                    {...rest}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => onChange(e.target.files)}
+                                  />
+                                  <Button
+                                    type="button"
+                                    className="cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono"
+                                    onClick={() =>
+                                      document
+                                        .querySelector('input[type="file"]')
+                                        ?.click()
+                                    }
+                                  >
+                                    BROWSE FILES
+                                  </Button>
+                                  <div className="text-xs text-gray-400 font-mono">
+                                    Leave empty to keep current image
+                                  </div>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-1 gap-6">
+                          <FormField
+                            control={editDesignForm.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  DESIGN TITLE *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                    placeholder="Genesis Block"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={editDesignForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                DESCRIPTION *
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green"
+                                  placeholder="A stunning glass representation of the first Bitcoin block..."
+                                  rows={4}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="flex space-x-4">
+                          <Button
+                            type="submit"
+                            disabled={editDesignMutation.isPending}
+                            className="flex-1 cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono"
+                          >
+                            {editDesignMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            UPDATE DESIGN
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={cancelEditing}
+                            className="flex-1 cyber-border text-gray-400 border-gray-400 hover:bg-gray-400 hover:text-black font-mono"
+                          >
+                            CANCEL
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              )}
 
               {/* Size Options Tab */}
               <TabsContent value="sizes" className="space-y-6">
@@ -516,6 +745,8 @@ export default function Admin() {
 }
 
 // Component for editing individual size options
+// Replace the SizeOptionCard component in admin.tsx (around line 1350)
+
 function SizeOptionCard({
   sizeOption,
   onUpdate,
@@ -530,7 +761,7 @@ function SizeOptionCard({
     defaultValues: {
       stripeProductId: sizeOption.stripeProductId || "",
       stripePriceId: sizeOption.stripePriceId || "",
-      price: parseFloat(sizeOption.price),
+      price: sizeOption.price ? parseFloat(sizeOption.price.toString()) : 0, // Fix NaN issue
       description: sizeOption.description || "",
     },
   });
@@ -557,7 +788,7 @@ function SizeOptionCard({
         </div>
         <div className="text-right">
           <p className="text-matrix font-mono font-bold text-xl">
-            ${parseFloat(sizeOption.price).toFixed(2)}
+            ${parseFloat(sizeOption.price?.toString() || "0").toFixed(2)}
           </p>
           <p
             className={`text-xs font-mono ${isConfigured ? "text-matrix" : "text-cyber-pink"}`}
@@ -623,10 +854,13 @@ function SizeOptionCard({
                       {...field}
                       type="number"
                       step="0.01"
+                      min="0"
+                      value={field.value || ""} // Ensure controlled input
                       className="bg-background border-matrix/30 text-white font-mono text-sm focus:border-matrix"
-                      onChange={(e) =>
-                        field.onChange(parseFloat(e.target.value))
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === "" ? 0 : parseFloat(value));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

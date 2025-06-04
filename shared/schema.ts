@@ -22,7 +22,6 @@ export const designs = pgTable("designs", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   imageUrl: text("image_url").notNull(),
-  category: text("category"), // e.g., "bitcoin", "ethereum", "custom"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

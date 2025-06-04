@@ -140,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin: Create design
   app.post("/api/admin/designs", upload.single("image"), async (req, res) => {
     try {
-      const { title, description, category } = req.body;
+      const { title, description } = req.body;
 
       if (!req.file) {
         return res.status(400).json({ message: "Design image is required" });
@@ -151,7 +151,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const designData = {
         title,
         description,
-        category: category || "custom",
         imageUrl,
       };
 
@@ -163,6 +162,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(400)
         .json({ message: "Error creating design: " + error.message });
+    }
+  });
+
+  // Admin: Update design
+  app.put("/api/admin/designs/:id", upload.single("image"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { title, description } = req.body;
+
+      const updateData: any = {};
+      if (title) updateData.title = title;
+      if (description) updateData.description = description;
+      if (req.file) {
+        updateData.imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      const design = await storage.updateDesign(id, updateData);
+      if (!design) {
+        return res.status(404).json({ message: "Design not found" });
+      }
+
+      res.json(design);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({ message: "Error updating design: " + error.message });
+    }
+  });
+
+  // Admin: Delete design
+  app.delete("/api/admin/designs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteDesign(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Design not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({ message: "Error deleting design: " + error.message });
     }
   });
 
