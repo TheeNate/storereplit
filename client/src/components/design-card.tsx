@@ -46,18 +46,22 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
           </p>
 
           {/* Pricing Preview */}
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-4 gap-2 text-center">
             <div className="bg-darker-surface rounded p-2">
               <p className="text-matrix font-mono text-sm font-bold">6"</p>
-              <p className="text-white text-xs">$149</p>
+              <p className="text-white text-xs">$1.00</p>
             </div>
             <div className="bg-darker-surface rounded p-2">
-              <p className="text-electric font-mono text-sm font-bold">12"</p>
-              <p className="text-white text-xs">$299</p>
+              <p className="text-electric font-mono text-sm font-bold">10"</p>
+              <p className="text-white text-xs">$1.00</p>
             </div>
             <div className="bg-darker-surface rounded p-2">
-              <p className="text-cyber-pink font-mono text-sm font-bold">15"</p>
-              <p className="text-white text-xs">$449</p>
+              <p className="text-matrix font-mono text-sm font-bold">12"</p>
+              <p className="text-white text-xs">$1.00</p>
+            </div>
+            <div className="bg-cyber-pink rounded p-2">
+              <p className="text-black font-mono text-sm font-bold">15"</p>
+              <p className="text-black text-xs">$1.00</p>
             </div>
           </div>
 
