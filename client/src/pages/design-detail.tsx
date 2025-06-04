@@ -95,16 +95,18 @@ export default function DesignDetail() {
     },
   });
 
+  // Replace the createOrderMutation in design-detail.tsx (around line 69)
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       console.log("SENDING ORDER DATA TO API:", orderData);
       const response = await apiRequest("POST", "/api/orders", orderData);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Order creation failed' }));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       return response.json();
     },
     onSuccess: (order) => {
@@ -113,7 +115,10 @@ export default function DesignDetail() {
         title: "Order Created",
         description: "Your custom glass art is in production!",
       });
-      setLocation(`/success?orderId=${order.id}`);
+      // Fix: Ensure the orderId parameter is properly added to the URL
+      const successUrl = `/success?orderId=${order.id}`;
+      console.log("Redirecting to:", successUrl);
+      setLocation(successUrl);
     },
     onError: (error: any) => {
       console.error("Order creation failed:", error);

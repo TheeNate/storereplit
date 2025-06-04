@@ -56,9 +56,7 @@ const designSchema = z.object({
 const editDesignSchema = z.object({
   title: z.string().min(1, "Design title is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  image: z
-    .any()
-    .optional(),
+  image: z.any().optional(),
 });
 
 const sizeOptionUpdateSchema = z.object({
@@ -273,14 +271,14 @@ export default function Admin() {
 
   const onEditDesign = (data: z.infer<typeof editDesignSchema>) => {
     if (!editingDesign) return;
-    
+
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
     if (data.image && data.image.length > 0) {
       formData.append("image", data.image[0]);
     }
-    
+
     editDesignMutation.mutate({ id: editingDesign.id, formData });
   };
 
@@ -448,7 +446,6 @@ export default function Admin() {
                               </FormItem>
                             )}
                           />
-
                         </div>
 
                         <FormField
@@ -521,7 +518,9 @@ export default function Admin() {
                                 EDIT
                               </Button>
                               <Button
-                                onClick={() => deleteDesignMutation.mutate(design.id)}
+                                onClick={() =>
+                                  deleteDesignMutation.mutate(design.id)
+                                }
                                 className="flex-1 cyber-border text-red-400 border-red-400 hover:bg-red-400 hover:text-black font-mono text-xs"
                               >
                                 <Trash2 className="mr-1" size={12} />
@@ -538,7 +537,10 @@ export default function Admin() {
 
               {/* Design Editing Dialog */}
               {editingDesign && (
-                <Dialog open={!!editingDesign} onOpenChange={() => cancelEditing()}>
+                <Dialog
+                  open={!!editingDesign}
+                  onOpenChange={() => cancelEditing()}
+                >
                   <DialogContent className="glass-morphism max-w-2xl">
                     <DialogHeader>
                       <DialogTitle className="text-2xl font-display font-bold text-electric">
@@ -547,7 +549,10 @@ export default function Admin() {
                       </DialogTitle>
                     </DialogHeader>
                     <Form {...editDesignForm}>
-                      <form onSubmit={editDesignForm.handleSubmit(onEditDesign)} className="space-y-6">
+                      <form
+                        onSubmit={editDesignForm.handleSubmit(onEditDesign)}
+                        className="space-y-6"
+                      >
                         <FormField
                           control={editDesignForm.control}
                           name="image"
@@ -740,6 +745,8 @@ export default function Admin() {
 }
 
 // Component for editing individual size options
+// Replace the SizeOptionCard component in admin.tsx (around line 1350)
+
 function SizeOptionCard({
   sizeOption,
   onUpdate,
@@ -754,7 +761,7 @@ function SizeOptionCard({
     defaultValues: {
       stripeProductId: sizeOption.stripeProductId || "",
       stripePriceId: sizeOption.stripePriceId || "",
-      price: parseFloat(sizeOption.price),
+      price: sizeOption.price ? parseFloat(sizeOption.price.toString()) : 0, // Fix NaN issue
       description: sizeOption.description || "",
     },
   });
@@ -781,7 +788,7 @@ function SizeOptionCard({
         </div>
         <div className="text-right">
           <p className="text-matrix font-mono font-bold text-xl">
-            ${parseFloat(sizeOption.price).toFixed(2)}
+            ${parseFloat(sizeOption.price?.toString() || "0").toFixed(2)}
           </p>
           <p
             className={`text-xs font-mono ${isConfigured ? "text-matrix" : "text-cyber-pink"}`}
@@ -847,10 +854,13 @@ function SizeOptionCard({
                       {...field}
                       type="number"
                       step="0.01"
+                      min="0"
+                      value={field.value || ""} // Ensure controlled input
                       className="bg-background border-matrix/30 text-white font-mono text-sm focus:border-matrix"
-                      onChange={(e) =>
-                        field.onChange(parseFloat(e.target.value))
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === "" ? 0 : parseFloat(value));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

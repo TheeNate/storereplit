@@ -85,6 +85,8 @@ export default function ProductDetail() {
     },
   });
 
+  // Replace the createOrderMutation in product-detail.tsx (around line 69)
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       console.log("SENDING ORDER DATA TO API:", orderData);
@@ -97,7 +99,10 @@ export default function ProductDetail() {
         title: "Order Created",
         description: "Your order has been confirmed!",
       });
-      setLocation(`/success?orderId=${order.id}`);
+      // Fix: Ensure the orderId parameter is properly added to the URL
+      const successUrl = `/success?orderId=${order.id}`;
+      console.log("Redirecting to:", successUrl);
+      setLocation(successUrl);
     },
     onError: (error: any) => {
       console.error("Order creation failed:", error);
