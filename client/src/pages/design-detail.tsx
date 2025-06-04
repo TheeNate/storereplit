@@ -247,39 +247,7 @@ export default function DesignDetail() {
               </p>
             </div>
 
-            {/* Size Comparison Visual */}
-            <Card className="glass-morphism">
-              <CardHeader>
-                <CardTitle className="text-xl font-display font-bold text-electric">
-                  SIZE COMPARISON
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-center gap-4 py-6">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-matrix rounded border-2 border-matrix mb-2" />
-                    <p className="text-matrix font-mono text-sm font-bold">
-                      6"
-                    </p>
-                    <p className="text-gray-400 text-xs">Compact</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-electric rounded border-2 border-electric mb-2" />
-                    <p className="text-electric font-mono text-sm font-bold">
-                      12"
-                    </p>
-                    <p className="text-gray-400 text-xs">Medium</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-28 h-28 bg-cyber-pink rounded border-2 border-cyber-pink mb-2" />
-                    <p className="text-cyber-pink font-mono text-sm font-bold">
-                      15"
-                    </p>
-                    <p className="text-gray-400 text-xs">Statement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Size Selection & Order Form */}
