@@ -18,34 +18,21 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
     blue: "hover:shadow-neon-blue group-hover:text-electric group-hover:border-electric",
   };
 
-  const categoryColors = {
-    bitcoin: "bg-matrix text-black",
-    ethereum: "bg-electric text-black",
-    blockchain: "bg-cyber-pink text-black",
-    cypherpunk: "bg-white text-black",
-    custom: "bg-gray-500 text-white",
-  };
 
-  const categoryColor =
-    categoryColors[design.category as keyof typeof categoryColors] ||
-    categoryColors.custom;
 
   return (
-    <Card
-      className={`group glass-morphism ${hoverClasses[hoverColor]} transition-all duration-500 transform hover:-translate-y-2`}
-    >
-      <CardContent className="p-6">
+    <Link href={`/design/${design.id}`} className="block">
+      <Card
+        className={`group glass-morphism ${hoverClasses[hoverColor]} transition-all duration-500 transform hover:-translate-y-2 cursor-pointer`}
+      >
+        <CardContent className="p-6">
         <div className="relative mb-6">
           <img
             src={design.imageUrl}
             alt={design.title}
             className="w-full h-64 object-cover rounded-lg group-hover:scale-105 transition-transform"
           />
-          <Badge
-            className={`absolute top-2 right-2 font-mono text-xs ${categoryColor}`}
-          >
-            {design.category?.toUpperCase()}
-          </Badge>
+
         </div>
 
         <div className="space-y-4">
@@ -74,16 +61,9 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
             </div>
           </div>
 
-          <Link href={`/design/${design.id}`}>
-            <Button
-              className={`w-full cyber-border ${hoverClasses[hoverColor]} font-mono`}
-            >
-              <Palette className="mr-2" size={16} />
-              SELECT SIZE & ORDER
-            </Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
