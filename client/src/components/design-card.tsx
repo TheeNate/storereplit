@@ -57,7 +57,7 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
                 const colorClasses = [
                   "bg-darker-surface text-matrix",
                   "bg-darker-surface text-electric", 
-                  "bg-darker-surface text-matrix",
+                  "bg-darker-surface text-white",
                   "bg-cyber-pink text-black"
                 ];
                 const colorClass = colorClasses[index] || "bg-darker-surface text-white";
