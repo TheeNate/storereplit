@@ -3,7 +3,8 @@ import { Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Design } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import type { Design, SizeOption } from "@shared/schema";
 
 interface DesignCardProps {
   design: Design;
@@ -17,6 +18,10 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
     pink: "hover:shadow-neon-pink group-hover:text-cyber-pink group-hover:border-cyber-pink",
     blue: "hover:shadow-neon-blue group-hover:text-electric group-hover:border-electric",
   };
+
+  const { data: sizeOptions } = useQuery<SizeOption[]>({
+    queryKey: ["/api/size-options"],
+  });
 
 
 
@@ -47,22 +52,32 @@ export function DesignCard({ design, hoverColor = "green" }: DesignCardProps) {
 
           {/* Pricing Preview */}
           <div className="grid grid-cols-4 gap-2 text-center">
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-matrix font-mono text-sm font-bold">6"</p>
-              <p className="text-white text-xs">$1.00</p>
-            </div>
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-electric font-mono text-sm font-bold">10"</p>
-              <p className="text-white text-xs">$1.00</p>
-            </div>
-            <div className="bg-darker-surface rounded p-2">
-              <p className="text-matrix font-mono text-sm font-bold">12"</p>
-              <p className="text-white text-xs">$1.00</p>
-            </div>
-            <div className="bg-cyber-pink rounded p-2">
-              <p className="text-black font-mono text-sm font-bold">15"</p>
-              <p className="text-black text-xs">$1.00</p>
-            </div>
+            {sizeOptions && sizeOptions.length > 0 ? (
+              sizeOptions.map((sizeOption, index) => {
+                const colorClasses = [
+                  "bg-darker-surface text-matrix",
+                  "bg-darker-surface text-electric", 
+                  "bg-darker-surface text-matrix",
+                  "bg-cyber-pink text-black"
+                ];
+                const colorClass = colorClasses[index] || "bg-darker-surface text-white";
+                
+                return (
+                  <div key={sizeOption.id} className={`${colorClass} rounded p-2`}>
+                    <p className="font-mono text-sm font-bold">{sizeOption.size}</p>
+                    <p className="text-xs">${sizeOption.price}</p>
+                  </div>
+                );
+              })
+            ) : (
+              // Loading fallback showing 4 placeholder boxes
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-darker-surface rounded p-2">
+                  <p className="text-gray-400 font-mono text-sm font-bold">--</p>
+                  <p className="text-gray-400 text-xs">Loading...</p>
+                </div>
+              ))
+            )}
           </div>
 
         </div>

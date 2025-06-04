@@ -58,31 +58,7 @@ export default function Landing() {
               CUSTOM DESIGN
             </Button>
           </div>
-
-          {/* Size & Pricing Preview */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-darker-surface rounded-lg p-6 border border-matrix/30 hover:border-matrix transition-all">
-              <h4 className="text-matrix font-mono font-bold text-lg mb-2">
-                6" COMPACT
-              </h4>
-              <p className="text-3xl font-bold text-white mb-2">$149</p>
-              <p className="text-gray-400 text-sm">Perfect for desk display</p>
-            </div>
-            <div className="bg-darker-surface rounded-lg p-6 border border-electric/30 hover:border-electric transition-all">
-              <h4 className="text-electric font-mono font-bold text-lg mb-2">
-                12" MEDIUM
-              </h4>
-              <p className="text-3xl font-bold text-white mb-2">$299</p>
-              <p className="text-gray-400 text-sm">Great for wall mounting</p>
-            </div>
-            <div className="bg-darker-surface rounded-lg p-6 border border-cyber-pink/30 hover:border-cyber-pink transition-all">
-              <h4 className="text-cyber-pink font-mono font-bold text-lg mb-2">
-                15" STATEMENT
-              </h4>
-              <p className="text-3xl font-bold text-white mb-2">$449</p>
-              <p className="text-gray-400 text-sm">Large centerpiece</p>
-            </div>
-          </div>
+  
         </div>
 
         {/* Floating geometric elements */}
