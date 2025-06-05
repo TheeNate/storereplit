@@ -11,7 +11,9 @@ export function Footer() {
               AS IF YOU DIDN'T ALREADY HAVE ENOUGHT STUFF WITH BITCOIN ON IT...
             </p>
             <div className="flex space-x-4">
-              <Twitter className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
+              <a href="https://x.com/TheeeNate" target="_blank" rel="noopener noreferrer">
+                <Twitter className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
+              </a>
             </div>
           </div>
 
