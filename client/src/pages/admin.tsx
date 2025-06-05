@@ -47,7 +47,7 @@ const authSchema = z.object({
 
 const designSchema = z.object({
   title: z.string().min(1, "Design title is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z.string().optional(),
   image: z
     .any()
     .refine((files) => files?.length > 0, "Design image is required"),
@@ -55,7 +55,7 @@ const designSchema = z.object({
 
 const editDesignSchema = z.object({
   title: z.string().min(1, "Design title is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z.string().optional(),
   image: z.any().optional(),
 });
 
@@ -71,7 +71,7 @@ type DesignForm = z.infer<typeof designSchema>;
 type SizeOptionUpdateForm = z.infer<typeof sizeOptionUpdateSchema>;
 
 export default function Admin() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -454,7 +454,7 @@ export default function Admin() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-matrix font-mono text-sm">
-                                DESCRIPTION *
+                                DESCRIPTION
                               </FormLabel>
                               <FormControl>
                                 <Textarea
@@ -619,8 +619,8 @@ export default function Admin() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-matrix font-mono text-sm">
-                                DESCRIPTION *
-                              </FormLabel>
+                                  DESCRIPTION
+                                </FormLabel>
                               <FormControl>
                                 <Textarea
                                   {...field}

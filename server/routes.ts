@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const designData = {
         title,
-        description,
+        description: description || "",
         imageUrl,
       };
 
