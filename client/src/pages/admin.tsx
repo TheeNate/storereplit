@@ -71,7 +71,7 @@ type DesignForm = z.infer<typeof designSchema>;
 type SizeOptionUpdateForm = z.infer<typeof sizeOptionUpdateSchema>;
 
 export default function Admin() {
-  const [isAuthenticated, setIsAuthenticated = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
