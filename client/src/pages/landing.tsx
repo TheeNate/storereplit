@@ -43,7 +43,8 @@ export default function Landing() {
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Button
-              className="px-8 py-4 bg-matrix text-black font-mono font-bold rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+              className="px-8 py-4 bg-[#00FF88] text-black font-mono font-bold rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+
               onClick={() =>
                 document
                   .getElementById("designs")
@@ -118,13 +119,12 @@ export default function Landing() {
                   Don't see what you're looking for?
                 </h3>
                 <p className="text-gray-400 font-mono mb-8">
-                  Our AI-powered custom design tool is coming soon. Get notified
-                  when it launches!
+                   Custom generation coming soon! I'm vibe coding, not a dev, gimme a minute!
                 </p>
-                <Button className="px-8 py-4 cyber-border hover:shadow-neon-pink font-mono">
+                {/* <Button className="px-8 py-4 cyber-border hover:shadow-neon-pink font-mono">
                   <Palette className="mr-2" size={20} />
                   NOTIFY ME - CUSTOM DESIGNS
-                </Button>
+                </Button> */}
               </div>
             </>
           ) : (

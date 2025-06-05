@@ -24,7 +24,7 @@ export async function sendOrderNotification(params: OrderEmailParams): Promise<b
     const manufacturerEmail = 'theee@btcglass.store';
 
     const { data, error } = await resend.emails.send({
-      from: 'BTC Glass <onboarding@resend.dev>',
+      from: 'BTC Glass <orders@btcglass.store>',
       to: [manufacturerEmail],
       subject: `New BTC Glass Order #${params.orderId} - ${params.productTitle}`,
       html: `
@@ -81,7 +81,7 @@ export async function sendOrderNotification(params: OrderEmailParams): Promise<b
 export async function sendCustomerOrderConfirmation(params: OrderEmailParams): Promise<boolean> {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'BTC Glass <onboarding@resend.dev>',
+      from: 'BTC Glass <orders@btcglass.store>',
       to: [params.customerEmail],
       subject: `Order Confirmed #${params.orderId} - ${params.productTitle} | BTC Glass`,
       html: `
