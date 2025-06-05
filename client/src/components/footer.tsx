@@ -1,4 +1,4 @@
-import { Twitter, Github, MessageCircle, Send } from "lucide-react";
+import { Twitter } from "lucide-react";
 
 export function Footer() {
   return (
@@ -12,9 +12,6 @@ export function Footer() {
             </p>
             <div className="flex space-x-4">
               <Twitter className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <Github className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <MessageCircle className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <Send className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
             </div>
           </div>
 
