@@ -33,7 +33,7 @@ export function Footer() {
             <ul className="space-y-2 font-mono text-sm">
               <li className="text-gray-400">theee@btcglass.store</li>
               
-              <li className="text-gray-400">Encrypted only</li>
+              <li className="text-gray-400"></li>
             </ul>
           </div>
         </div>
