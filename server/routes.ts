@@ -119,13 +119,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin authentication
+  // Admin authentication with session
   app.post("/api/admin/auth", async (req, res) => {
     try {
       const { password } = req.body;
       const adminPassword = process.env.ADMIN_PASSWORD || "btcglass2024";
 
       if (password === adminPassword) {
+        // Set session cookie that expires in 1 hour
+        res.cookie('admin_session', 'authenticated', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 3600000, // 1 hour
+          sameSite: 'strict'
+        });
         res.json({ success: true });
       } else {
         res.status(401).json({ message: "Invalid password" });
@@ -137,8 +144,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Middleware to check admin authentication
+  const requireAdminAuth = (req: any, res: any, next: any) => {
+    if (req.cookies?.admin_session === 'authenticated') {
+      next();
+    } else {
+      res.status(401).json({ message: "Admin authentication required" });
+    }
+  };
+
+  // Admin logout
+  app.post("/api/admin/logout", (req, res) => {
+    res.clearCookie('admin_session');
+    res.json({ success: true });
+  });
+
   // Admin: Create design
-  app.post("/api/admin/designs", upload.single("image"), async (req, res) => {
+  app.post("/api/admin/designs", requireAdminAuth, upload.single("image"), async (req, res) => {
     try {
       const { title, description } = req.body;
 
@@ -166,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Update design
-  app.put("/api/admin/designs/:id", upload.single("image"), async (req, res) => {
+  app.put("/api/admin/designs/:id", requireAdminAuth, upload.single("image"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { title, description } = req.body;
@@ -192,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Delete design
-  app.delete("/api/admin/designs/:id", async (req, res) => {
+  app.delete("/api/admin/designs/:id", requireAdminAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteDesign(id);
@@ -208,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Update size option with Stripe IDs
-  app.put("/api/admin/size-options/:id", async (req, res) => {
+  app.put("/api/admin/size-options/:id", requireAdminAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { stripeProductId, stripePriceId, price, description } = req.body;

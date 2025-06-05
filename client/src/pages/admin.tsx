@@ -75,6 +75,20 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/logout", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsAuthenticated(false);
+      toast({
+        title: "Logged Out",
+        description: "Successfully logged out of admin panel",
+      });
+    },
+  });
+
   const authForm = useForm<AuthForm>({
     resolver: zodResolver(authSchema),
     defaultValues: { password: "" },
@@ -349,10 +363,19 @@ export default function Admin() {
         ) : (
           // Admin Dashboard
           <div className="space-y-8">
-            <h1 className="text-5xl font-display font-bold text-center">
-              <span className="text-matrix">BTC GLASS</span>{" "}
-              <span className="text-electric">ADMIN</span>
-            </h1>
+            <div className="flex justify-between items-center">
+              <h1 className="text-5xl font-display font-bold">
+                <span className="text-matrix">BTC GLASS</span>{" "}
+                <span className="text-electric">ADMIN</span>
+              </h1>
+              <Button
+                onClick={() => logoutMutation.mutate()}
+                className="cyber-border text-red-400 border-red-400 hover:bg-red-400 hover:text-black font-mono"
+                disabled={logoutMutation.isPending}
+              >
+                {logoutMutation.isPending ? "LOGGING OUT..." : "LOGOUT"}
+              </Button>
+            </div>
 
             <Tabs defaultValue="designs" className="w-full">
               <TabsList className="grid w-full grid-cols-3 glass-morphism">
