@@ -119,6 +119,10 @@ export default function Landing() {
                   Don't see what you're looking for?
                 </h3>
                 <p className="text-gray-400 font-mono mb-8">
+                   New desgines uploaded every day. Check back soon for more!
+                  Think yuo have a better idea? You probably do email us!
+                </p>
+                <p className="text-gray-400 font-mono mb-8">
                    Custom generation coming soon! I'm vibe coding, not a dev, gimme a minute!
                 </p>
                 {/* <Button className="px-8 py-4 cyber-border hover:shadow-neon-pink font-mono">
@@ -132,7 +136,7 @@ export default function Landing() {
               <h3 className="text-3xl font-display font-bold text-matrix mb-4">
                 No Designs Available
               </h3>
-              <p className="text-gray-400 font-mono mb-8">
+              <p className="text-pink-400 font-mono mb-8">
                 Designs are being uploaded. Check back soon for our amazing
                 collection!
               </p>

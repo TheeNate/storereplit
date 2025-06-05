@@ -431,8 +431,7 @@ export default function DesignDetail() {
                       )}
 
                       <p className="text-xs text-gray-500 font-mono text-center">
-                        Secure payment powered by Stripe. Your custom glass art
-                        will be handcrafted and shipped within 2-3 weeks.
+                        Secure payment powered by Stripe. Pay with BTC coming soon. But seriously, Im not jsut saying that!
                       </p>
                     </form>
                   </Form>
