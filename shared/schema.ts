@@ -71,6 +71,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const insertDesignSchema = createInsertSchema(designs).omit({
   id: true,
   createdAt: true,
+}).extend({
+  description: z.string().optional(),
 });
 
 export const insertSizeOptionSchema = createInsertSchema(sizeOptions).omit({

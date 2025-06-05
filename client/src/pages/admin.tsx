@@ -47,7 +47,7 @@ const authSchema = z.object({
 
 const designSchema = z.object({
   title: z.string().min(1, "Design title is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z.string().optional(),
   image: z
     .any()
     .refine((files) => files?.length > 0, "Design image is required"),
@@ -55,7 +55,7 @@ const designSchema = z.object({
 
 const editDesignSchema = z.object({
   title: z.string().min(1, "Design title is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  description: z.string().optional(),
   image: z.any().optional(),
 });
 
@@ -74,6 +74,20 @@ export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/logout", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsAuthenticated(false);
+      toast({
+        title: "Logged Out",
+        description: "Successfully logged out of admin panel",
+      });
+    },
+  });
 
   const authForm = useForm<AuthForm>({
     resolver: zodResolver(authSchema),
@@ -349,10 +363,19 @@ export default function Admin() {
         ) : (
           // Admin Dashboard
           <div className="space-y-8">
-            <h1 className="text-5xl font-display font-bold text-center">
-              <span className="text-matrix">BTC GLASS</span>{" "}
-              <span className="text-electric">ADMIN</span>
-            </h1>
+            <div className="flex justify-between items-center">
+              <h1 className="text-5xl font-display font-bold">
+                <span className="text-matrix">BTC GLASS</span>{" "}
+                <span className="text-electric">ADMIN</span>
+              </h1>
+              <Button
+                onClick={() => logoutMutation.mutate()}
+                className="cyber-border text-red-400 border-red-400 hover:bg-red-400 hover:text-black font-mono"
+                disabled={logoutMutation.isPending}
+              >
+                {logoutMutation.isPending ? "LOGGING OUT..." : "LOGOUT"}
+              </Button>
+            </div>
 
             <Tabs defaultValue="designs" className="w-full">
               <TabsList className="grid w-full grid-cols-3 glass-morphism">
@@ -454,7 +477,7 @@ export default function Admin() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-matrix font-mono text-sm">
-                                DESCRIPTION *
+                                DESCRIPTION
                               </FormLabel>
                               <FormControl>
                                 <Textarea
@@ -619,8 +642,8 @@ export default function Admin() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-matrix font-mono text-sm">
-                                DESCRIPTION *
-                              </FormLabel>
+                                  DESCRIPTION
+                                </FormLabel>
                               <FormControl>
                                 <Textarea
                                   {...field}

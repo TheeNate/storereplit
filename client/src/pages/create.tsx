@@ -10,14 +10,14 @@ export default function Create() {
           <CardContent className="p-12">
             <Brain className="text-6xl text-electric mb-8 animate-pulse-neon mx-auto" />
             <h2 className="text-5xl font-display font-bold mb-8">
-              <span className="text-cyber-pink">AI-POWERED</span> CUSTOM DESIGN
+              <span className="text-cyber-pink">CUSTOM DESIGN</span> 
             </h2>
             <div className="bg-darker-surface rounded-xl p-8 font-mono text-left max-w-2xl mx-auto">
               <p className="text-matrix text-lg mb-4">
-                <i className="fas fa-terminal mr-2"></i>btc-glass@ai-studio:~$ initialize_custom_designer
+                <i className="fas fa-terminal mr-2"></i>btc-glass@-studio:~$ initialize_custom_designer
               </p>
               <p className="text-white mb-4">
-                🧠 Coming Soon: Design your own Custom Piece using our AI image generator!
+                🧠 Coming Soon: Design your own Custom Piece! 
               </p>
               <p className="text-gray-400 mb-4">
                 &gt; Loading neural networks...
@@ -26,7 +26,13 @@ export default function Create() {
                 &gt; Calibrating glass synthesis algorithms...
               </p>
               <p className="text-electric">
-                &gt; Ready to revolutionize glass art with artificial intelligence.
+                &gt; Making more stuff with bitcoin on it...
+              </p>
+              <p className="text-electric">
+                &gt; Have your own design? Shoot us an email, we can make it!
+              </p>
+              <p className="text-electric">
+                &gt; Get a kick back on every order of your desgine!
               </p>
               <div className="mt-6 flex items-center">
                 <span className="text-matrix mr-2">●</span>

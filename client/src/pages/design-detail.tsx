@@ -33,7 +33,7 @@ const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
   address: z.string().min(10, "Complete address is required"),
-  notes: z.string().optional(),
+  
 });
 
 type OrderForm = z.infer<typeof orderSchema>;
@@ -394,25 +394,7 @@ export default function DesignDetail() {
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="notes"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-matrix font-mono text-sm">
-                              SPECIAL INSTRUCTIONS
-                            </FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                className="bg-darker-surface border-matrix/30 text-white font-mono focus:border-matrix focus:shadow-neon-green h-20"
-                                placeholder="Any custom engraving requests or special handling notes..."
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      
 
                       {!clientSecret && (
                         <Button
@@ -449,8 +431,7 @@ export default function DesignDetail() {
                       )}
 
                       <p className="text-xs text-gray-500 font-mono text-center">
-                        Secure payment powered by Stripe. Your custom glass art
-                        will be handcrafted and shipped within 2-3 weeks.
+                        Secure payment powered by Stripe. Pay with BTC coming soon. But seriously, Im not jsut saying that!
                       </p>
                     </form>
                   </Form>
