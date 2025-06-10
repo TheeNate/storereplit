@@ -12,6 +12,7 @@ import {
   insertSizeOptionSchema,
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
+import { zapriteService } from "./zaprite";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
