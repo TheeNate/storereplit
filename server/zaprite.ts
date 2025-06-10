@@ -100,13 +100,7 @@ export class ZapriteService {
       const invoice = response.data;
 
       // Generate QR code if not already present
-      const qrCodeDataUrl = await QRCode.toDataURL(invoice.lightningInvoice, {
-        margin: 1,
-        color: {
-          dark: '#00FF88',
-          light: '#0A0A0A',
-        },
-      });
+      const qrCodeDataUrl = await QRCode.toDataURL(invoice.lightningInvoice);
 
       return {
         id: invoice.id,
