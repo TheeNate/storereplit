@@ -7,7 +7,7 @@ import {
   useElements,
   PaymentElement,
 } from "@stripe/react-stripe-js";
-import { CreditCard, UserRound, ArrowLeft, Check } from "lucide-react";
+import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,12 +28,14 @@ import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
 import type { Design, SizeOption } from "@shared/schema";
 import { z } from "zod";
+import { PaymentMethodSelector } from "@/components/payment-method-selector";
+import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
 
 const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
   address: z.string().min(10, "Complete address is required"),
-  
+  notes: z.string().optional(),
 });
 
 type OrderForm = z.infer<typeof orderSchema>;
@@ -46,6 +48,8 @@ export default function DesignDetail() {
   const queryClient = useQueryClient();
   const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
   const [clientSecret, setClientSecret] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
+  const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
 
   const { data: design, isLoading: designLoading } = useQuery<Design>({
     queryKey: [`/api/designs/${designId}`],
