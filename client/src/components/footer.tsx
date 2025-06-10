@@ -1,4 +1,4 @@
-import { Twitter, Github, MessageCircle, Send } from "lucide-react";
+import { Twitter } from "lucide-react";
 
 export function Footer() {
   return (
@@ -11,10 +11,9 @@ export function Footer() {
               AS IF YOU DIDN'T ALREADY HAVE ENOUGHT STUFF WITH BITCOIN ON IT...
             </p>
             <div className="flex space-x-4">
-              <Twitter className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <Github className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <MessageCircle className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
-              <Send className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
+              <a href="https://x.com/TheeeNate" target="_blank" rel="noopener noreferrer">
+                <Twitter className="text-electric hover:text-white cursor-pointer transition-colors" size={20} />
+              </a>
             </div>
           </div>
 
@@ -33,7 +32,7 @@ export function Footer() {
             <ul className="space-y-2 font-mono text-sm">
               <li className="text-gray-400">theee@btcglass.store</li>
               
-              <li className="text-gray-400">Encrypted only</li>
+              <li className="text-gray-400"></li>
             </ul>
           </div>
         </div>

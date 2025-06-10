@@ -31,9 +31,8 @@ export default function Create() {
               <p className="text-electric">
                 &gt; Have your own design? Shoot us an email, we can make it!
               </p>
-              <p className="text-electric">
-                &gt; Get a kick back on every order of your desgine!
-              </p>
+              
+          
               <div className="mt-6 flex items-center">
                 <span className="text-matrix mr-2">●</span>
                 <span className="text-white animate-pulse">System initializing...</span>

@@ -7,7 +7,7 @@ import {
   useElements,
   PaymentElement,
 } from "@stripe/react-stripe-js";
-import { CreditCard, UserRound, ArrowLeft, Check } from "lucide-react";
+import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,12 +28,14 @@ import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
 import type { Design, SizeOption } from "@shared/schema";
 import { z } from "zod";
+import { PaymentMethodSelector } from "@/components/payment-method-selector";
+import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
 
 const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
   address: z.string().min(10, "Complete address is required"),
-  
+  notes: z.string().optional(),
 });
 
 type OrderForm = z.infer<typeof orderSchema>;
@@ -46,6 +48,8 @@ export default function DesignDetail() {
   const queryClient = useQueryClient();
   const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
   const [clientSecret, setClientSecret] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
+  const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
 
   const { data: design, isLoading: designLoading } = useQuery<Design>({
     queryKey: [`/api/designs/${designId}`],
@@ -173,6 +177,7 @@ export default function DesignDetail() {
       shippingAddress: formData.address,
       notes: formData.notes || "",
       amount: selectedSize.price,
+      paymentMethod: "stripe",
       stripePaymentIntentId: paymentIntentId,
     };
 
@@ -182,6 +187,61 @@ export default function DesignDetail() {
       await createOrderMutation.mutateAsync(orderData);
     } catch (error) {
       console.error("Error in handlePaymentSuccess:", error);
+    }
+  };
+
+  // Handle Bitcoin payment success
+  const handleBitcoinPaymentSuccess = async (invoiceId: string) => {
+    console.log("=== BITCOIN PAYMENT SUCCESS HANDLER CALLED ===");
+    console.log("Bitcoin Invoice ID:", invoiceId);
+    console.log("Design:", design, "Size ID:", selectedSizeId);
+
+    if (!design || !selectedSizeId) {
+      console.error("Missing design or size selection");
+      return;
+    }
+
+    const selectedSize = sizeOptions?.find(
+      (size) => size.id === selectedSizeId,
+    );
+    if (!selectedSize) {
+      console.error("Selected size option not found");
+      return;
+    }
+
+    const formData = form.getValues();
+    console.log("Form data:", formData);
+
+    const orderData = {
+      designId: design.id,
+      sizeOptionId: selectedSizeId,
+      customerName: formData.name,
+      customerEmail: formData.email,
+      shippingAddress: formData.address,
+      notes: formData.notes || "",
+      amount: selectedSize.price,
+      paymentMethod: "bitcoin",
+      zapriteInvoiceId: invoiceId,
+    };
+
+    console.log("CREATING BITCOIN ORDER WITH DATA:", orderData);
+    
+    try {
+      await createOrderMutation.mutateAsync(orderData);
+    } catch (error) {
+      console.error("Error in handleBitcoinPaymentSuccess:", error);
+    }
+  };
+
+  // Handle payment method selection
+  const handlePaymentMethodSelect = (method: 'stripe' | 'bitcoin') => {
+    setPaymentMethod(method);
+    if (method === 'bitcoin') {
+      setShowBitcoinPayment(true);
+      setClientSecret(""); // Clear Stripe data
+    } else {
+      setShowBitcoinPayment(false);
+      // Form submission will trigger Stripe payment intent creation
     }
   };
 
@@ -394,9 +454,18 @@ export default function DesignDetail() {
                         )}
                       />
 
-                      
+                      {/* Payment Method Selection */}
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                        <div className="space-y-6">
+                          <PaymentMethodSelector
+                            onSelect={handlePaymentMethodSelect}
+                            selectedMethod={paymentMethod}
+                          />
+                        </div>
+                      )}
 
-                      {!clientSecret && (
+                      {/* Stripe Payment */}
+                      {paymentMethod === 'stripe' && !clientSecret && (
                         <Button
                           type="submit"
                           className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
@@ -412,7 +481,7 @@ export default function DesignDetail() {
                         </Button>
                       )}
 
-                      {clientSecret && (
+                      {clientSecret && paymentMethod === 'stripe' && (
                         <Elements
                           stripe={stripePromise}
                           options={{ clientSecret }}
@@ -430,13 +499,68 @@ export default function DesignDetail() {
                         </Elements>
                       )}
 
+                      {/* Bitcoin Payment */}
+                      {paymentMethod === 'bitcoin' && !showBitcoinPayment && (
+                        <Button
+                          type="button"
+                          onClick={async () => {
+                            const isValid = await form.trigger();
+                            if (isValid) {
+                              setShowBitcoinPayment(true);
+                            }
+                          }}
+                          className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+                          disabled={!selectedSizeId}
+                        >
+                          <Bitcoin className="mr-2" size={20} />
+                          PAY WITH BITCOIN - ${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}
+                        </Button>
+                      )}
+
+                      {/* Change payment method button */}
+                      {(paymentMethod || clientSecret || showBitcoinPayment) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setPaymentMethod(null);
+                            setClientSecret("");
+                            setShowBitcoinPayment(false);
+                          }}
+                          className="w-full mt-4"
+                        >
+                          Change Payment Method
+                        </Button>
+                      )}
+
                       <p className="text-xs text-gray-500 font-mono text-center">
-                        Secure payment powered by Stripe. Pay with BTC coming soon. But seriously, Im not jsut saying that!
+                        Secure payments powered by Stripe and Bitcoin Lightning Network
                       </p>
                     </form>
                   </Form>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Bitcoin Payment Form Modal/Overlay */}
+            {paymentMethod === 'bitcoin' && showBitcoinPayment && form.formState.isValid && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="max-w-md w-full">
+                  <BitcoinPaymentForm
+                    designId={designId}
+                    sizeOptionId={selectedSizeId!}
+                    customerInfo={{
+                      name: form.getValues('name'),
+                      email: form.getValues('email'),
+                      address: form.getValues('address'),
+                      notes: form.getValues('notes'),
+                    }}
+                    amount={selectedSize ? parseFloat(selectedSize.price).toFixed(2) : "0"}
+                    onSuccess={handleBitcoinPaymentSuccess}
+                    onCancel={() => setShowBitcoinPayment(false)}
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>

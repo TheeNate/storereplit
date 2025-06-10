@@ -47,7 +47,9 @@ export const orders = pgTable("orders", {
   shippingAddress: text("shipping_address").notNull(),
   notes: text("notes"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").notNull().default("stripe"), // "stripe" or "bitcoin"
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  zapriteInvoiceId: text("zaprite_invoice_id"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

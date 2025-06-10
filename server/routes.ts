@@ -12,6 +12,7 @@ import {
   insertSizeOptionSchema,
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
+import { zapriteService } from "./zaprite";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
@@ -336,6 +337,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Zaprite Bitcoin invoice creation
+  app.post("/api/create-bitcoin-invoice", async (req, res) => {
+    try {
+      const { designId, sizeOptionId, customerInfo } = req.body;
+      console.log("Creating Bitcoin invoice for design + size:", { designId, sizeOptionId });
+      
+      // Fetch the design and size option
+      const design = await storage.getDesign(designId);
+      const sizeOption = await storage.getSizeOption(sizeOptionId);
+      
+      if (!design || !sizeOption) {
+        return res.status(404).json({ message: "Design or size option not found" });
+      }
+      
+      const amount = parseFloat(sizeOption.price);
+      const chargeAmount = Math.round(amount * 100); // Convert to cents for Zaprite
+
+      console.log("Creating Bitcoin invoice:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+
+      const invoice = await zapriteService.createInvoice({
+        amount: chargeAmount,
+        description: `${design.title} - ${sizeOption.name}`,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        metadata: {
+          designId: designId.toString(),
+          sizeOptionId: sizeOptionId.toString(),
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+        },
+      });
+
+      console.log("Bitcoin invoice created:", invoice.id);
+      res.json(invoice);
+    } catch (error: any) {
+      console.error("Zaprite error:", error);
+      res
+        .status(500)
+        .json({ message: "Error creating Bitcoin invoice: " + error.message });
+    }
+  });
+
+  // Get Bitcoin invoice status
+  app.get("/api/bitcoin-invoice/:invoiceId", async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const invoice = await zapriteService.getInvoice(invoiceId);
+      res.json(invoice);
+    } catch (error: any) {
+      console.error("Zaprite error:", error);
+      res
+        .status(500)
+        .json({ message: "Error fetching Bitcoin invoice: " + error.message });
+    }
+  });
+
   // Replace the order creation section in server/routes.ts (around line 200)
   // Find the section that starts with "// NEW: Handle successful payment and create order"
 
@@ -485,6 +542,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ received: true });
+    },
+  );
+
+  // Zaprite webhook endpoint for Bitcoin payment confirmations
+  app.post(
+    "/api/zaprite-webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["x-zaprite-signature"];
+      
+      if (!sig) {
+        console.log("No Zaprite signature found in headers");
+        return res.status(400).send("Missing signature");
+      }
+
+      try {
+        const payload = req.body.toString();
+        const isValid = zapriteService.verifyWebhookSignature(payload, sig as string);
+        
+        if (!isValid) {
+          console.log("Zaprite webhook signature verification failed");
+          return res.status(400).send("Invalid signature");
+        }
+
+        const event = JSON.parse(payload);
+        console.log("Zaprite webhook event:", event.type, event.data?.id);
+
+        // Handle Bitcoin payment confirmation
+        if (event.type === "invoice.paid" && event.data) {
+          const invoice = event.data;
+          console.log("Bitcoin payment confirmed for invoice:", invoice.id);
+          
+          // Find and update order status
+          // Implementation will depend on how you store the Zaprite invoice ID
+          // This would need to be added to your order creation flow
+        }
+
+        res.json({ received: true });
+      } catch (error: any) {
+        console.error("Zaprite webhook error:", error);
+        res.status(400).send(`Webhook Error: ${error.message}`);
+      }
     },
   );
 
