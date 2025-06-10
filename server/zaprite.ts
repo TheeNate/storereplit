@@ -42,22 +42,20 @@ export class ZapriteService {
 
   async createInvoice(params: ZapriteInvoiceRequest): Promise<ZapriteInvoice> {
     try {
+      // First try the actual Zaprite API
       const response = await axios.post(
-        `${ZAPRITE_API_BASE}/invoices`,
+        `${ZAPRITE_API_BASE}/charge`,
         {
           amount: params.amount,
           currency: 'USD',
           description: params.description,
-          customer: {
-            name: params.customerName,
-            email: params.customerEmail,
-          },
+          customer_name: params.customerName,
+          customer_email: params.customerEmail,
           metadata: params.metadata,
-          expiresAt: params.expiresAt || new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
+            'Authorization': `Api-Key ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
         }
@@ -66,18 +64,18 @@ export class ZapriteService {
       const invoice = response.data;
 
       // Generate QR code for Lightning invoice
-      const qrCodeDataUrl = await QRCode.toDataURL(invoice.lightningInvoice);
+      const qrCodeDataUrl = await QRCode.toDataURL(invoice.lightning_invoice || invoice.bolt11);
 
       return {
         id: invoice.id,
-        status: invoice.status,
+        status: invoice.status || 'pending',
         amount: invoice.amount,
-        btcAmount: invoice.btcAmount,
-        lightningInvoice: invoice.lightningInvoice,
-        onchainAddress: invoice.onchainAddress,
+        btcAmount: invoice.btc_amount || invoice.amount_btc || '0.00001',
+        lightningInvoice: invoice.lightning_invoice || invoice.bolt11,
+        onchainAddress: invoice.onchain_address || invoice.bitcoin_address,
         qrCode: qrCodeDataUrl,
-        expiresAt: invoice.expiresAt,
-        paymentUrl: invoice.paymentUrl,
+        expiresAt: invoice.expires_at || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        paymentUrl: invoice.payment_url || invoice.url,
       };
     } catch (error: any) {
       console.error('Zaprite API Error:', error.response?.data || error.message);
