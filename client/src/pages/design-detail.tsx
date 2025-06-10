@@ -237,7 +237,7 @@ export default function DesignDetail() {
   const handlePaymentMethodSelect = (method: 'stripe' | 'bitcoin') => {
     setPaymentMethod(method);
     if (method === 'bitcoin') {
-      setShowBitcoinPayment(true);
+      // Don't set showBitcoinPayment to true here
       setClientSecret(""); // Clear Stripe data
     } else {
       setShowBitcoinPayment(false);
@@ -543,7 +543,7 @@ export default function DesignDetail() {
             )}
 
             {/* Bitcoin Payment Form Modal/Overlay */}
-            {paymentMethod === 'bitcoin' && showBitcoinPayment && form.formState.isValid && (
+            {paymentMethod === 'bitcoin' && showBitcoinPayment && (
               <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                 <div className="max-w-md w-full">
                   <BitcoinPaymentForm
