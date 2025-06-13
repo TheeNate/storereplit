@@ -285,51 +285,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // NEW: Create payment intent for design + size combination
+  // Create payment intent for cart-based orders
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      const { designId, sizeOptionId, customerInfo } = req.body;
+      const { amount, items, customerInfo, designId, sizeOptionId } = req.body;
 
-      console.log("Creating payment intent for design + size:", {
-        designId,
-        sizeOptionId,
-      });
+      // Support both cart-based orders (new) and single-item orders (legacy)
+      if (items && items.length > 0) {
+        // Cart-based order with multiple items
+        console.log("Creating payment intent for cart:", { items, amount });
+        
+        // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
+        const chargeAmount = Math.max(Math.round(amount * 100), 50);
 
-      // Get the size option to determine pricing
-      const sizeOption = await storage.getSizeOption(sizeOptionId);
-      if (!sizeOption) {
-        return res.status(404).json({ message: "Size option not found" });
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: chargeAmount,
+          currency: "usd",
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            orderType: "cart",
+            itemCount: items.length.toString(),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+            cartItems: JSON.stringify(items),
+          },
+        });
+
+        console.log("Cart payment intent created:", paymentIntent.id);
+        res.json({ clientSecret: paymentIntent.client_secret });
+      } else if (designId && sizeOptionId) {
+        // Legacy single-item order
+        console.log("Creating payment intent for design + size:", {
+          designId,
+          sizeOptionId,
+        });
+
+        // Get the size option to determine pricing
+        const sizeOption = await storage.getSizeOption(sizeOptionId);
+        if (!sizeOption) {
+          return res.status(404).json({ message: "Size option not found" });
+        }
+
+        // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
+        const chargeAmount = Math.max(
+          Math.round(parseFloat(sizeOption.price) * 100),
+          50,
+        );
+
+        console.log("Creating payment intent:", {
+          amount: sizeOption.price,
+          chargeAmount,
+          designId,
+          sizeOptionId,
+        });
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: chargeAmount,
+          currency: "usd",
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            orderType: "single",
+            designId: designId.toString(),
+            sizeOptionId: sizeOptionId.toString(),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+          },
+        });
+
+        console.log("Payment intent created:", paymentIntent.id);
+        res.json({ clientSecret: paymentIntent.client_secret });
+      } else {
+        return res.status(400).json({ 
+          message: "Either cart items or design/size selection is required" 
+        });
       }
-
-      // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
-      const chargeAmount = Math.max(
-        Math.round(parseFloat(sizeOption.price) * 100),
-        50,
-      );
-
-      console.log("Creating payment intent:", {
-        amount: sizeOption.price,
-        chargeAmount,
-        designId,
-        sizeOptionId,
-      });
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: chargeAmount,
-        currency: "usd",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          designId: designId.toString(),
-          sizeOptionId: sizeOptionId.toString(),
-          customerName: customerInfo.name,
-          customerEmail: customerInfo.email,
-        },
-      });
-
-      console.log("Payment intent created:", paymentIntent.id);
-      res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
       console.error("Stripe error:", error);
       res
