@@ -1,0 +1,63 @@
+Add shopping cart functionality to BTC Glass app
+Currently users can only buy one item at a time. I need to add "Add to Cart" functionality so customers can purchase multiple glass art pieces in one order.
+Current State:
+
+Cart icon exists in header but shows "Your cart is empty"
+Design detail pages only have direct "Pay Now" buttons
+No way to add items to cart
+No cart management functionality
+
+Required Changes:
+1. Add "Add to Cart" button to design-detail.tsx:
+
+Replace or add alongside current payment flow
+Button should say "ADD TO CART" with shopping cart icon
+After clicking, show confirmation (item added to cart)
+Update cart icon badge with item count
+
+2. Cart state management:
+
+Store cart items in browser state (useState/localStorage equivalent)
+Each cart item needs: designId, sizeId, quantity, customerInfo
+Cart should persist between page visits
+Show total item count in header cart badge
+
+3. Update cart page functionality:
+
+Show list of items in cart with images and details
+Allow quantity changes (+ / - buttons)
+Allow item removal from cart
+Show individual prices and total price
+"Proceed to Checkout" button
+
+4. Multi-item checkout process:
+
+Cart checkout should support both Stripe and Bitcoin payments
+Calculate total amount for all items
+Create single payment for entire cart
+After payment, create individual order records for each item
+Send single confirmation email with all items listed
+
+5. UI Requirements:
+
+Keep existing cyberpunk/matrix design aesthetic
+Cart badge on header icon showing item count
+Cart items should show design image, title, size, and price
+Mobile-responsive cart page
+Loading states for add to cart actions
+
+Key Technical Points:
+
+Don't change existing single-item purchase flow (keep it as backup)
+Cart data structure should be compatible with existing order system
+Use existing Stripe and Zaprite payment integrations
+Keep all existing database schemas and email functionality
+Multi-item orders should create separate order records per item (not combined orders)
+
+Database Considerations:
+
+No database changes needed
+Create individual order records for each cart item after payment
+Each order record should have same structure as current single-item orders
+
+Focus ONLY on adding cart functionality. Don't modify Bitcoin payments, Stripe integration, admin panel, or any other existing features.
