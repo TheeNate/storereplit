@@ -2,11 +2,7 @@ import { Link, useLocation } from "wouter";
 import { ShoppingCart, Bitcoin, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+
 import { useCart } from "@/lib/cart";
 
 export function Header() {
@@ -89,22 +85,17 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button className="cyber-border hover:shadow-neon-green font-mono relative">
-                  <ShoppingCart className="mr-2" size={16} />
-                  CART
-                  {totalItems > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-matrix text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {totalItems}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="glass-morphism border-matrix/30" align="end">
-                <CartDropdown />
-              </PopoverContent>
-            </Popover>
+            <Link href="/cart">
+              <Button className="cyber-border hover:shadow-neon-green font-mono relative">
+                <ShoppingCart className="mr-2" size={16} />
+                CART
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-matrix text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Navigation */}
@@ -125,10 +116,12 @@ export function Header() {
                     {item.name}
                   </Link>
                 ))}
-                <Button className="cyber-border hover:shadow-neon-green font-mono mt-4">
-                  <ShoppingCart className="mr-2" size={16} />
-                  CART
-                </Button>
+                <Link href="/cart">
+                  <Button className="cyber-border hover:shadow-neon-green font-mono mt-4 w-full">
+                    <ShoppingCart className="mr-2" size={16} />
+                    CART ({totalItems})
+                  </Button>
+                </Link>
               </div>
             </SheetContent>
           </Sheet>
