@@ -7,7 +7,7 @@ import {
   useElements,
   PaymentElement,
 } from "@stripe/react-stripe-js";
-import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin } from "lucide-react";
+import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
 import type { Design, SizeOption } from "@shared/schema";
 import { z } from "zod";
+import { useCart } from "@/lib/cart";
 import { PaymentMethodSelector } from "@/components/payment-method-selector";
 import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
 
@@ -46,7 +47,9 @@ export default function DesignDetail() {
   const designId = parseInt(params.id || "0");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { addToCart } = useCart();
   const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
@@ -242,6 +245,43 @@ export default function DesignDetail() {
     } else {
       setShowBitcoinPayment(false);
       // Form submission will trigger Stripe payment intent creation
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!design || !selectedSizeId || !selectedSize) {
+      toast({
+        title: "Selection Required",
+        description: "Please select a size before adding to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingToCart(true);
+    
+    try {
+      addToCart({
+        designId: design.id,
+        sizeOptionId: selectedSizeId,
+        designTitle: design.title,
+        designImage: design.imageUrl,
+        sizeOptionName: selectedSize.name,
+        price: selectedSize.price,
+      });
+
+      toast({
+        title: "Added to Cart",
+        description: `${design.title} (${selectedSize.name}) added to your cart`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -453,6 +493,29 @@ export default function DesignDetail() {
                           </FormItem>
                         )}
                       />
+
+                      {/* Add to Cart Button */}
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                        <div className="space-y-4">
+                          <Button
+                            type="button"
+                            onClick={handleAddToCart}
+                            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+                            disabled={!selectedSizeId || isAddingToCart}
+                          >
+                            <ShoppingCart className="mr-2" size={20} />
+                            {isAddingToCart 
+                              ? "ADDING..." 
+                              : `ADD TO CART - $${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}`}
+                          </Button>
+                          
+                          <div className="text-center">
+                            <p className="text-gray-400 font-mono text-sm mb-4">
+                              OR
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Payment Method Selection */}
                       {!paymentMethod && !clientSecret && !showBitcoinPayment && (
