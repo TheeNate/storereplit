@@ -9,7 +9,7 @@ if (!process.env.ZAPRITE_WEBHOOK_SECRET) {
   throw new Error("ZAPRITE_WEBHOOK_SECRET environment variable must be set");
 }
 
-const ZAPRITE_API_BASE = 'https://api.zaprite.com/v1';
+const ZAPRITE_API_BASE = 'https://app.zaprite.com/api/v1';
 
 interface ZapriteInvoiceRequest {
   amount: number; // Amount in USD cents
