@@ -361,11 +361,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Zaprite Bitcoin invoice creation
+  // Zaprite Bitcoin order creation
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
       const { designId, sizeOptionId, customerInfo } = req.body;
-      console.log("Creating Bitcoin invoice for design + size:", { designId, sizeOptionId });
+      console.log("Creating Bitcoin order for design + size:", { designId, sizeOptionId });
       
       // Fetch the design and size option
       const design = await storage.getDesign(designId);
@@ -378,14 +378,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const amount = parseFloat(sizeOption.price);
       const chargeAmount = Math.round(amount * 100); // Convert to cents for Zaprite
 
-      console.log("Creating Bitcoin invoice:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+      console.log("Creating Bitcoin order:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+
+      // Create order in database first
+      const order = await storage.createOrder({
+        designId,
+        sizeOptionId,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        shippingAddress: customerInfo.address,
+        notes: customerInfo.notes,
+        amount: sizeOption.price,
+        paymentMethod: "bitcoin",
+      });
 
       const invoice = await zapriteService.createInvoice({
         amount: chargeAmount,
         description: `${design.title} - ${sizeOption.name}`,
-        customerName: customerInfo.name,
         customerEmail: customerInfo.email,
         metadata: {
+          orderId: order.id.toString(),
           designId: designId.toString(),
           sizeOptionId: sizeOptionId.toString(),
           customerName: customerInfo.name,
@@ -393,7 +405,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      console.log("Bitcoin invoice created:", invoice.id);
+      // Update order with Zaprite invoice ID
+      await storage.updateOrderZapriteId(order.id, invoice.id);
+
+      console.log("Bitcoin order created:", invoice.id);
       res.json(invoice);
     } catch (error: any) {
       console.error("Zaprite error:", error);
