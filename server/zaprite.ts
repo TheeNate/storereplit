@@ -44,7 +44,7 @@ export class ZapriteService {
     try {
       // First try the actual Zaprite API
       const response = await axios.post(
-        `${ZAPRITE_API_BASE}/charge`,
+        `${ZAPRITE_API_BASE}/invoices`,
         {
           amount: params.amount,
           currency: 'USD',
@@ -55,7 +55,7 @@ export class ZapriteService {
         },
         {
           headers: {
-            'Authorization': `Api-Key ${this.apiKey}`,
+            'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
         }
@@ -79,6 +79,11 @@ export class ZapriteService {
       };
     } catch (error: any) {
       console.error('Zaprite API Error:', error.response?.data || error.message);
+      console.error('Request details:', {
+        url: `${ZAPRITE_API_BASE}/invoices`,
+        headers: { 'Authorization': `Bearer ${this.apiKey.substring(0, 10)}...` },
+        data: params
+      });
       throw new Error(`Failed to create Zaprite invoice: ${error.response?.data?.message || error.message}`);
     }
   }
