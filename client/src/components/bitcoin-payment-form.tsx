@@ -62,10 +62,13 @@ export function BitcoinPaymentForm({
       }
       
       const invoiceData: BitcoinInvoice = await response.json();
-      setInvoice(invoiceData);
       
-      // Start polling for payment status
-      startPaymentPolling(invoiceData.id);
+      // Redirect to Zaprite checkout URL
+      if (invoiceData.paymentUrl) {
+        window.location.href = invoiceData.paymentUrl;
+      } else {
+        throw new Error('No payment URL received');
+      }
     } catch (error: any) {
       console.error("Bitcoin invoice creation failed:", error);
       toast({
@@ -73,7 +76,6 @@ export function BitcoinPaymentForm({
         description: "Bitcoin payment service is currently unavailable. Please use credit card payment instead.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
