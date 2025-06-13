@@ -69,8 +69,8 @@ export function BitcoinPaymentForm({
     } catch (error: any) {
       console.error("Bitcoin invoice creation failed:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create Bitcoin invoice",
+        title: "Bitcoin Payment Unavailable",
+        description: "Bitcoin payment service is currently unavailable. Please use credit card payment instead.",
         variant: "destructive",
       });
     } finally {

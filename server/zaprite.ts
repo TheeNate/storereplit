@@ -43,23 +43,46 @@ export class ZapriteService {
   async createInvoice(params: ZapriteInvoiceRequest): Promise<ZapriteInvoice> {
     try {
       // First try the actual Zaprite API
-      const response = await axios.post(
-        `${ZAPRITE_API_BASE}/invoices`,
-        {
-          amount: params.amount,
-          currency: 'USD',
-          description: params.description,
-          customer_name: params.customerName,
-          customer_email: params.customerEmail,
-          metadata: params.metadata,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
+      // Try multiple possible Zaprite API formats
+      let response;
+      const authFormats = [
+        { auth: `Bearer ${this.apiKey}`, endpoint: 'invoices' },
+        { auth: `Api-Key ${this.apiKey}`, endpoint: 'invoices' },
+        { auth: `Bearer ${this.apiKey}`, endpoint: 'charges' },
+        { auth: `Api-Key ${this.apiKey}`, endpoint: 'charges' }
+      ];
+
+      for (const format of authFormats) {
+        try {
+          response = await axios.post(
+            `${ZAPRITE_API_BASE}/${format.endpoint}`,
+            {
+              amount: params.amount,
+              currency: 'USD',
+              description: params.description,
+              customer_name: params.customerName,
+              customer_email: params.customerEmail,
+              metadata: params.metadata,
+            },
+            {
+              headers: {
+                'Authorization': format.auth,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          break; // Success, exit the loop
+        } catch (error: any) {
+          if (error.response?.status === 404) {
+            continue; // Try next format
+          }
+          throw error; // Re-throw non-404 errors
         }
-      );
+      }
+
+      if (!response) {
+        throw new Error('All API endpoint formats failed');
+      }
 
       const invoice = response.data;
 

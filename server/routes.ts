@@ -337,6 +337,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Zaprite API connection
+  app.get("/api/test-zaprite", async (req, res) => {
+    try {
+      const response = await axios.get("https://api.zaprite.com/v1/account", {
+        headers: {
+          Authorization: `Bearer ${process.env.ZAPRITE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      });
+      res.json({ 
+        status: "success", 
+        message: "Zaprite API connection successful",
+        account: response.data 
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        status: "error",
+        message: "Zaprite API connection failed",
+        error: error.response?.data || error.message 
+      });
+    }
+  });
+
   // Zaprite Bitcoin invoice creation
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
