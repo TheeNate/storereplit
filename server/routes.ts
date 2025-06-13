@@ -2,6 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
+import axios from "axios";
 import multer from "multer";
 import path from "path";
 import { storage } from "./storage";
@@ -19,7 +20,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-04-30.basil",
 });
 
 // Configure multer for file uploads
@@ -398,7 +399,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Zaprite error:", error);
       res
         .status(500)
-        .json({ message: "Error creating Bitcoin invoice: " + error.message });
+        .json({ 
+          message: "Bitcoin payment service unavailable: " + error.message,
+          suggestion: "Please use credit card payment or contact support to verify Bitcoin payment setup"
+        });
     }
   });
 
