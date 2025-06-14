@@ -7,7 +7,7 @@ import {
   useElements,
   PaymentElement,
 } from "@stripe/react-stripe-js";
-import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin, ShoppingCart } from "lucide-react";
+import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin, ShoppingCart, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +36,11 @@ import { ShippingCalculator } from "@/components/shipping-calculator";
 const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
-  address: z.string().min(10, "Complete address is required"),
+  streetAddress: z.string().min(1, "Street address is required"),
+  aptSuite: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(2, "State is required"),
+  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "Please enter a valid ZIP code"),
   notes: z.string().optional(),
 });
 
@@ -55,6 +59,9 @@ export default function DesignDetail() {
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState<any>(null);
+  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
+  const [shippingError, setShippingError] = useState<string>("");
 
   const { data: design, isLoading: designLoading } = useQuery<Design>({
     queryKey: [`/api/designs/${designId}`],
@@ -72,7 +79,11 @@ export default function DesignDetail() {
     defaultValues: {
       name: "",
       email: "",
-      address: "",
+      streetAddress: "",
+      aptSuite: "",
+      city: "",
+      state: "",
+      zipCode: "",
       notes: "",
     },
   });
@@ -93,7 +104,7 @@ export default function DesignDetail() {
         sizeOptionId: selectedSizeId,
         customerInfo: data,
         amount: totalAmount,
-        customerZip: data.address ? data.address.split('\n').pop()?.trim() : '',
+        customerZip: data.zipCode,
         shippingMethod: selectedShipping?.service,
         shippingRate: selectedShipping?.price,
       });

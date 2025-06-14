@@ -23,8 +23,11 @@ import { useMutation } from "@tanstack/react-query";
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
-  address: z.string().min(1, "Address is required"),
-  zipCode: z.string().min(5, "Valid zip code is required"),
+  streetAddress: z.string().min(1, "Street address is required"),
+  aptSuite: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(2, "State is required"),
+  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "Please enter a valid ZIP code"),
   notes: z.string().optional(),
 });
 
