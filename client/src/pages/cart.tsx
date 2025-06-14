@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PaymentMethodSelector } from "@/components/payment-method-selector";
 import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
+import { ShippingCalculator } from "@/components/shipping-calculator";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,6 +24,7 @@ const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
   address: z.string().min(1, "Address is required"),
+  zipCode: z.string().min(5, "Valid zip code is required"),
   notes: z.string().optional(),
 });
 
@@ -102,6 +104,8 @@ export default function Cart() {
   const [clientSecret, setClientSecret] = useState("");
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState<any>(null);
+  const [shippingCost, setShippingCost] = useState(0);
 
   const form = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),

@@ -14,6 +14,7 @@ import {
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
 import { zapriteService } from "./zaprite";
+import { uspsService } from "./usps-rates";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
@@ -661,6 +662,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  // USPS Shipping Rate API endpoints
+  app.post("/api/shipping/calculate", async (req, res) => {
+    try {
+      const { destinationZip, sizeOptionId } = req.body;
+
+      if (!destinationZip || !sizeOptionId) {
+        return res.status(400).json({ 
+          message: "Destination zip code and size option ID are required" 
+        });
+      }
+
+      // Validate zip code format
+      const isValidZip = await uspsService.validateZipCode(destinationZip);
+      if (!isValidZip) {
+        return res.status(400).json({ 
+          message: "Invalid zip code format. Please use 5-digit format (e.g., 12345)" 
+        });
+      }
+
+      // Get size option details
+      const sizeOption = await storage.getSizeOption(sizeOptionId);
+      if (!sizeOption) {
+        return res.status(404).json({ message: "Size option not found" });
+      }
+
+      console.log(`Calculating shipping rates for ${sizeOption.name} to ${destinationZip}`);
+
+      // Get shipping rates from USPS
+      const shippingOptions = await uspsService.getShippingRates(destinationZip, sizeOption.name);
+
+      res.json({
+        destinationZip,
+        sizeOption: {
+          id: sizeOption.id,
+          name: sizeOption.name,
+          size: sizeOption.size,
+        },
+        shippingOptions,
+      });
+    } catch (error: any) {
+      console.error("Error calculating shipping rates:", error);
+      res.status(500).json({ 
+        message: "Error calculating shipping rates: " + error.message 
+      });
+    }
+  });
+
+  // Validate zip code endpoint
+  app.post("/api/shipping/validate-zip", async (req, res) => {
+    try {
+      const { zipCode } = req.body;
+
+      if (!zipCode) {
+        return res.status(400).json({ message: "Zip code is required" });
+      }
+
+      const isValid = await uspsService.validateZipCode(zipCode);
+      
+      res.json({
+        zipCode,
+        isValid,
+        message: isValid ? "Valid zip code" : "Invalid zip code format",
+      });
+    } catch (error: any) {
+      console.error("Error validating zip code:", error);
+      res.status(500).json({ 
+        message: "Error validating zip code: " + error.message 
+      });
+    }
+  });
+
+  // Test USPS API connection
+  app.get("/api/shipping/test-usps", async (req, res) => {
+    try {
+      // Test with a sample zip code and default size
+      const testZip = "90210"; // Beverly Hills, CA
+      const sizeOptions = await storage.getAllSizeOptions();
+      
+      if (sizeOptions.length === 0) {
+        return res.status(404).json({ message: "No size options available for testing" });
+      }
+
+      const testSize = sizeOptions[0];
+      const shippingOptions = await uspsService.getShippingRates(testZip, testSize.name);
+
+      res.json({
+        status: "success",
+        message: "USPS API connection successful",
+        testZip,
+        testSize: testSize.name,
+        shippingOptions,
+      });
+    } catch (error: any) {
+      console.error("USPS API test failed:", error);
+      res.status(500).json({
+        status: "error",
+        message: "USPS API connection failed",
+        error: error.message,
+      });
+    }
+  });
 
   // Serve uploaded files
   app.use("/uploads", express.static("uploads"));
