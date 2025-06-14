@@ -394,18 +394,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ FIXED: Zaprite Bitcoin order creation for CART-based orders
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
-      const { items, customerInfo, shippingCost = 0, shippingMethod, designId, sizeOptionId } = req.body;
+      const { items, cartItems, customerInfo, shippingCost = 0, shippingMethod, designId, sizeOptionId, amount } = req.body;
+      
+      // Handle both parameter names for compatibility
+      const orderItems = items || cartItems;
 
       // Handle both cart-based orders (new) and single-item orders (legacy)
-      if (items && items.length > 0) {
+      if (orderItems && orderItems.length > 0) {
         // ✅ NEW: Cart-based Bitcoin payment
-        console.log("Creating Bitcoin invoice for cart:", { items, shippingCost });
+        console.log("Creating Bitcoin invoice for cart:", { orderItems, shippingCost });
 
         // Calculate total for all items in cart
         let cartSubtotal = 0;
         let orderDescription = "Cart: ";
 
-        for (const item of items) {
+        for (const item of orderItems) {
           const design = await storage.getDesign(item.designId);
           const sizeOption = await storage.getSizeOption(item.sizeOptionId);
 
@@ -431,17 +434,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shippingCost, 
           totalAmount, 
           chargeAmount,
-          itemCount: items.length 
+          itemCount: orderItems.length 
         });
 
         // Create consolidated order for entire cart
         const order = await storage.createOrder({
-          designId: items[0].designId, // Use first item's design for legacy compatibility
-          sizeOptionId: items[0].sizeOptionId, // Use first item's size for legacy compatibility
+          designId: orderItems[0].designId, // Use first item's design for legacy compatibility
+          sizeOptionId: orderItems[0].sizeOptionId, // Use first item's size for legacy compatibility
           customerName: customerInfo.name,
           customerEmail: customerInfo.email,
           shippingAddress: customerInfo.address,
-          notes: customerInfo.notes || `Cart order: ${items.length} items`,
+          notes: customerInfo.notes || `Cart order: ${orderItems.length} items`,
           amount: totalAmount.toString(),
           paymentMethod: "bitcoin",
           shippingMethod: shippingMethod,
@@ -455,8 +458,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metadata: {
             orderId: order.id.toString(),
             orderType: "cart",
-            itemCount: items.length.toString(),
-            cartItems: JSON.stringify(items),
+            itemCount: orderItems.length.toString(),
+            cartItems: JSON.stringify(orderItems),
             customerName: customerInfo.name,
             customerEmail: customerInfo.email,
             shippingCost: shippingCost.toString(),

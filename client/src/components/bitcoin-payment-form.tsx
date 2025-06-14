@@ -59,7 +59,7 @@ export function BitcoinPaymentForm({
   const createInvoice = async () => {
     setIsLoading(true);
     try {
-      const invoiceData = cartItems && cartItems.length > 0 ? {
+      const requestData = cartItems && cartItems.length > 0 ? {
         // Cart-based order
         cartItems,
         customerInfo,
@@ -72,17 +72,17 @@ export function BitcoinPaymentForm({
         amount: parseFloat(amount),
       };
 
-      const response = await apiRequest("POST", "/api/create-bitcoin-invoice", invoiceData);
+      const response = await apiRequest("POST", "/api/create-bitcoin-invoice", requestData);
       
       if (!response.ok) {
         throw new Error('Failed to create Bitcoin invoice');
       }
       
-      const invoiceData: BitcoinInvoice = await response.json();
+      const responseData: BitcoinInvoice = await response.json();
       
       // Redirect to Zaprite checkout URL
-      if (invoiceData.paymentUrl) {
-        window.location.href = invoiceData.paymentUrl;
+      if (responseData.paymentUrl) {
+        window.location.href = responseData.paymentUrl;
       } else {
         throw new Error('No payment URL received');
       }
