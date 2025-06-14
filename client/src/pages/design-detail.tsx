@@ -31,6 +31,7 @@ import { z } from "zod";
 import { useCart } from "@/lib/cart";
 import { PaymentMethodSelector } from "@/components/payment-method-selector";
 import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
+import { ShippingCalculator } from "@/components/shipping-calculator";
 
 const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -53,6 +54,7 @@ export default function DesignDetail() {
   const [clientSecret, setClientSecret] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState<any>(null);
 
   const { data: design, isLoading: designLoading } = useQuery<Design>({
     queryKey: [`/api/designs/${designId}`],
@@ -81,10 +83,19 @@ export default function DesignDetail() {
         designId,
         sizeOptionId: selectedSizeId,
       });
+      const selectedSize = sizeOptions?.find(s => s.id === selectedSizeId);
+      const productPrice = parseFloat(selectedSize?.price || "0");
+      const shippingCost = selectedShipping?.price || 0;
+      const totalAmount = (productPrice + shippingCost).toFixed(2);
+      
       const response = await apiRequest("POST", "/api/create-payment-intent", {
         designId,
         sizeOptionId: selectedSizeId,
         customerInfo: data,
+        amount: totalAmount,
+        customerZip: data.address ? data.address.split('\n').pop()?.trim() : '',
+        shippingMethod: selectedShipping?.service,
+        shippingRate: selectedShipping?.price,
       });
       return response.json();
     },
@@ -137,11 +148,24 @@ export default function DesignDetail() {
     },
   });
 
+  const handleShippingSelect = (option: any) => {
+    setSelectedShipping(option);
+  };
+
   const onSubmit = (data: OrderForm) => {
     if (!design || !selectedSizeId) {
       toast({
         title: "Selection Required",
         description: "Please select a size before proceeding",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedShipping) {
+      toast({
+        title: "Shipping Required",
+        description: "Please select a shipping method before proceeding",
         variant: "destructive",
       });
       return;
@@ -494,8 +518,18 @@ export default function DesignDetail() {
                         )}
                       />
 
+                      {/* Shipping Calculator */}
+                      {selectedSizeId && (
+                        <ShippingCalculator
+                          sizeOptionId={selectedSizeId}
+                          onShippingSelect={handleShippingSelect}
+                          selectedShipping={selectedShipping}
+                          initialZip={form.watch('address') ? form.watch('address').split('\n').pop()?.trim() : ''}
+                        />
+                      )}
+
                       {/* Add to Cart Button */}
-                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
                         <div className="space-y-4">
                           <Button
                             type="button"
@@ -518,7 +552,7 @@ export default function DesignDetail() {
                       )}
 
                       {/* Payment Method Selection */}
-                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
                         <div className="space-y-6">
                           <PaymentMethodSelector
                             onSelect={handlePaymentMethodSelect}
