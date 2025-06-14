@@ -50,42 +50,119 @@ const StripeCheckoutForm = ({
     event.preventDefault();
 
     if (!stripe || !elements) {
+      console.error("Stripe or Elements not loaded");
+      toast({
+        title: "Payment Error",
+        description: "Payment system not ready. Please try again.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsProcessing(true);
+    console.log("Starting cart payment confirmation...");
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/success`,
-      },
-    });
+    try {
+      // First, submit the payment element to collect payment method
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        console.error("Error submitting payment element:", submitError);
+        toast({
+          title: "Payment Error",
+          description: submitError.message || "Error submitting payment information",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
 
-    if (error) {
+      console.log("Payment element submitted successfully");
+
+      // Then confirm the payment with redirect disabled
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/success`,
+        },
+        redirect: "if_required", // This prevents automatic redirect
+      });
+
+      console.log("Payment confirmation result:", { error, paymentIntent });
+
+      if (error) {
+        console.error("Payment confirmation error:", error);
+        toast({
+          title: "Payment Failed",
+          description: error.message || "Payment could not be processed",
+          variant: "destructive",
+        });
+      } else if (paymentIntent) {
+        console.log("Payment successful:", paymentIntent.id, "Status:", paymentIntent.status);
+
+        if (paymentIntent.status === "succeeded") {
+          console.log("Cart payment succeeded, calling onSuccess");
+          toast({
+            title: "Payment Successful",
+            description: "Your order has been placed successfully!",
+          });
+          onSuccess();
+        } else {
+          console.log("Payment not succeeded, status:", paymentIntent.status);
+          toast({
+            title: "Payment Incomplete",
+            description: `Payment status: ${paymentIntent.status}`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("No payment intent returned");
+        toast({
+          title: "Payment Error",
+          description: "No payment confirmation received",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Unexpected error during cart payment:", err);
       toast({
-        title: "Payment Failed",
-        description: error.message,
+        title: "Payment Error",
+        description: "An unexpected error occurred during payment",
         variant: "destructive",
       });
-    } else {
-      onSuccess();
     }
 
     setIsProcessing(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+    <div className="space-y-4">
+      <div className="p-4 bg-darker-surface rounded-lg border border-matrix/30">
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            paymentMethodOrder: ["card"],
+          }}
+          onReady={() => {
+            console.log("Cart PaymentElement is ready");
+          }}
+          onChange={(event) => {
+            console.log("Cart PaymentElement changed:", event);
+            if (event.error) {
+              console.error("Cart PaymentElement error:", event.error);
+            }
+          }}
+        />
+      </div>
       <Button
-        type="submit"
-        disabled={!stripe || isProcessing}
+        type="button"
+        onClick={handleSubmit}
+        disabled={!stripe || !elements || isProcessing}
         className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
       >
-        {isProcessing ? "PROCESSING..." : `PAY $${totalAmount}`}
+        <CreditCard className="mr-2" size={20} />
+        {isProcessing ? "PROCESSING..." : `COMPLETE PAYMENT - $${totalAmount}`}
       </Button>
-    </form>
+    </div>
   );
 };
 
