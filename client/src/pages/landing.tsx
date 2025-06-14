@@ -82,8 +82,7 @@ export default function Landing() {
               <span className="text-matrix">DESIGN</span> COLLECTION
             </h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto font-mono">
-              Each design tells a story of the digital revolution. Choose your
-              favorite and select your perfect size.
+              
             </p>
           </div>
 
@@ -119,8 +118,8 @@ export default function Landing() {
                   Don't see what you're looking for?
                 </h3>
                 <p className="text-gray-400 font-mono mb-8">
-                   New desgines uploaded every day. Check back soon for more!
-                  Think yuo have a better idea? You probably do email us!
+                  New designs added weekly. Check back soon for more!
+                  Think you have a cooler design? You probably do. Email us, we can make it!
                 </p>
                 <p className="text-gray-400 font-mono mb-8">
                    Custom generation coming soon! I'm vibe coding, not a dev, gimme a minute!

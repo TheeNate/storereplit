@@ -666,15 +666,7 @@ export default function Cart() {
                         </Button>
                       )}
 
-                      {clientSecret && paymentMethod === 'stripe' && (
-                        <Elements stripe={stripePromise} options={{ clientSecret }}>
-                          <StripeCheckoutForm
-                            onSuccess={handlePaymentSuccess}
-                            totalAmount={finalTotal.toFixed(0)}
-                            cartItems={items}
-                          />
-                        </Elements>
-                      )}
+
 
                       {/* Bitcoin Payment */}
                       {paymentMethod === 'bitcoin' && !showBitcoinPayment && (
@@ -712,18 +704,43 @@ export default function Cart() {
               </Card>
             )}
 
+            {/* Stripe Payment Form (Outside main form to avoid nesting) */}
+            {clientSecret && paymentMethod === 'stripe' && (
+              <Card className="glass-morphism">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-display font-bold text-electric">
+                    STRIPE PAYMENT
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <StripeCheckoutForm
+                      onSuccess={handlePaymentSuccess}
+                      totalAmount={finalTotal.toFixed(0)}
+                      cartItems={items}
+                    />
+                  </Elements>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Bitcoin Payment Form Modal/Overlay */}
             {paymentMethod === 'bitcoin' && showBitcoinPayment && (
               <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                 <div className="max-w-md w-full">
                   <BitcoinPaymentForm
-                    designId={items[0].designId}
-                    sizeOptionId={items[0].sizeOptionId}
+                    cartItems={items.map(item => ({
+                      designId: item.designId,
+                      sizeOptionId: item.sizeOptionId,
+                      quantity: item.quantity,
+                    }))}
                     customerInfo={{
                       name: form.getValues('name'),
                       email: form.getValues('email'),
                       address: `${form.getValues('streetAddress')}${form.getValues('aptSuite') ? '\n' + form.getValues('aptSuite') : ''}\n${form.getValues('city')}, ${form.getValues('state')} ${form.getValues('zipCode')}`,
                       notes: form.getValues('notes'),
+                      shippingCost: shippingCost,
+                      shippingMethod: selectedShipping?.service,
                     }}
                     amount={finalTotal.toFixed(2)}
                     onSuccess={handleBitcoinPaymentSuccess}

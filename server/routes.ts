@@ -295,16 +295,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (items && items.length > 0) {
         // Cart-based order with multiple items
         console.log("Creating payment intent for cart:", { items, amount });
-        
+
         // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
         const chargeAmount = Math.max(Math.round(amount * 100), 50);
 
         const paymentIntent = await stripe.paymentIntents.create({
           amount: chargeAmount,
           currency: "usd",
-          automatic_payment_methods: {
-            enabled: true,
-          },
+          payment_method_types: ['card'], // ✅ Only allow cards
           metadata: {
             orderType: "cart",
             itemCount: items.length.toString(),
@@ -336,7 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         console.log("Creating payment intent:", {
-          amount: sizeOption.price,
+          amount: sizeOption.price,  
           chargeAmount,
           designId,
           sizeOptionId,
@@ -345,9 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const paymentIntent = await stripe.paymentIntents.create({
           amount: chargeAmount,
           currency: "usd",
-          automatic_payment_methods: {
-            enabled: true,
-          },
+          payment_method_types: ['card'], // ✅ Only allow cards
           metadata: {
             orderType: "single",
             designId: designId.toString(),
@@ -395,55 +391,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Zaprite Bitcoin order creation
+  // ✅ FIXED: Zaprite Bitcoin order creation for CART-based orders
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
-      const { designId, sizeOptionId, customerInfo } = req.body;
-      console.log("Creating Bitcoin order for design + size:", { designId, sizeOptionId });
-      
-      // Fetch the design and size option
-      const design = await storage.getDesign(designId);
-      const sizeOption = await storage.getSizeOption(sizeOptionId);
-      
-      if (!design || !sizeOption) {
-        return res.status(404).json({ message: "Design or size option not found" });
-      }
-      
-      const amount = parseFloat(sizeOption.price);
-      const chargeAmount = Math.round(amount * 100); // Convert to cents for Zaprite
+      const { items, customerInfo, shippingCost = 0, shippingMethod, designId, sizeOptionId } = req.body;
 
-      console.log("Creating Bitcoin order:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+      // Handle both cart-based orders (new) and single-item orders (legacy)
+      if (items && items.length > 0) {
+        // ✅ NEW: Cart-based Bitcoin payment
+        console.log("Creating Bitcoin invoice for cart:", { items, shippingCost });
 
-      // Create order in database first
-      const order = await storage.createOrder({
-        designId,
-        sizeOptionId,
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        shippingAddress: customerInfo.address,
-        notes: customerInfo.notes,
-        amount: sizeOption.price,
-        paymentMethod: "bitcoin",
-      });
+        // Calculate total for all items in cart
+        let cartSubtotal = 0;
+        let orderDescription = "Cart: ";
 
-      const invoice = await zapriteService.createInvoice({
-        amount: chargeAmount,
-        description: `${design.title} - ${sizeOption.name}`,
-        customerEmail: customerInfo.email,
-        metadata: {
-          orderId: order.id.toString(),
-          designId: designId.toString(),
-          sizeOptionId: sizeOptionId.toString(),
+        for (const item of items) {
+          const design = await storage.getDesign(item.designId);
+          const sizeOption = await storage.getSizeOption(item.sizeOptionId);
+
+          if (!design || !sizeOption) {
+            return res.status(404).json({ 
+              message: `Design or size option not found for item: ${item.designId}/${item.sizeOptionId}` 
+            });
+          }
+
+          const itemPrice = parseFloat(sizeOption.price) * item.quantity;
+          cartSubtotal += itemPrice;
+          orderDescription += `${design.title} (${sizeOption.name}) x${item.quantity}, `;
+        }
+
+        // Remove trailing comma and space
+        orderDescription = orderDescription.slice(0, -2);
+
+        const totalAmount = cartSubtotal + (shippingCost || 0);
+        const chargeAmount = Math.round(totalAmount * 100); // Convert to cents
+
+        console.log("Cart Bitcoin order:", { 
+          cartSubtotal, 
+          shippingCost, 
+          totalAmount, 
+          chargeAmount,
+          itemCount: items.length 
+        });
+
+        // Create consolidated order for entire cart
+        const order = await storage.createOrder({
+          designId: items[0].designId, // Use first item's design for legacy compatibility
+          sizeOptionId: items[0].sizeOptionId, // Use first item's size for legacy compatibility
           customerName: customerInfo.name,
           customerEmail: customerInfo.email,
-        },
-      });
+          shippingAddress: customerInfo.address,
+          notes: customerInfo.notes || `Cart order: ${items.length} items`,
+          amount: totalAmount.toString(),
+          paymentMethod: "bitcoin",
+          shippingMethod: shippingMethod,
+          shippingRate: shippingCost.toString(),
+        });
 
-      // Update order with Zaprite invoice ID
-      await storage.updateOrderZapriteId(order.id, invoice.id);
+        const invoice = await zapriteService.createInvoice({
+          amount: chargeAmount,
+          description: orderDescription,
+          customerEmail: customerInfo.email,
+          metadata: {
+            orderId: order.id.toString(),
+            orderType: "cart",
+            itemCount: items.length.toString(),
+            cartItems: JSON.stringify(items),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+            shippingCost: shippingCost.toString(),
+          },
+        });
 
-      console.log("Bitcoin order created:", invoice.id);
-      res.json(invoice);
+        // Update order with Zaprite invoice ID
+        await storage.updateOrderZapriteId(order.id, invoice.id);
+
+        console.log("Cart Bitcoin invoice created:", invoice.id);
+        res.json(invoice);
+
+      } else if (designId && sizeOptionId) {
+        // ✅ EXISTING: Single-item Bitcoin payment (legacy support)
+        console.log("Creating Bitcoin invoice for single item:", { designId, sizeOptionId });
+
+        const design = await storage.getDesign(designId);
+        const sizeOption = await storage.getSizeOption(sizeOptionId);
+
+        if (!design || !sizeOption) {
+          return res.status(404).json({ message: "Design or size option not found" });
+        }
+
+        const baseAmount = parseFloat(sizeOption.price);
+        const totalAmount = baseAmount + (shippingCost || 0);
+        const chargeAmount = Math.round(totalAmount * 100);
+
+        console.log("Single item Bitcoin order:", { 
+          baseAmount, 
+          shippingCost, 
+          totalAmount, 
+          chargeAmount 
+        });
+
+        const order = await storage.createOrder({
+          designId,
+          sizeOptionId,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          shippingAddress: customerInfo.address,
+          notes: customerInfo.notes,
+          amount: totalAmount.toString(),
+          paymentMethod: "bitcoin",
+          shippingMethod: shippingMethod,
+          shippingRate: shippingCost.toString(),
+        });
+
+        const invoice = await zapriteService.createInvoice({
+          amount: chargeAmount,
+          description: `${design.title} - ${sizeOption.name}`,
+          customerEmail: customerInfo.email,
+          metadata: {
+            orderId: order.id.toString(),
+            orderType: "single",
+            designId: designId.toString(),
+            sizeOptionId: sizeOptionId.toString(),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+            shippingCost: shippingCost.toString(),
+          },
+        });
+
+        await storage.updateOrderZapriteId(order.id, invoice.id);
+
+        console.log("Single item Bitcoin invoice created:", invoice.id);
+        res.json(invoice);
+
+      } else {
+        return res.status(400).json({ 
+          message: "Either cart items or design/size selection is required for Bitcoin payment" 
+        });
+      }
+
     } catch (error: any) {
       console.error("Zaprite error:", error);
       res
@@ -468,9 +554,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Error fetching Bitcoin invoice: " + error.message });
     }
   });
-
-  // Replace the order creation section in server/routes.ts (around line 200)
-  // Find the section that starts with "// NEW: Handle successful payment and create order"
 
   // NEW: Handle successful payment and create order (updated for design + size)
   app.post("/api/orders", async (req, res) => {
@@ -627,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     express.raw({ type: "application/json" }),
     async (req, res) => {
       const sig = req.headers["x-zaprite-signature"];
-      
+
       if (!sig) {
         console.log("No Zaprite signature found in headers");
         return res.status(400).send("Missing signature");
@@ -636,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const payload = req.body.toString();
         const isValid = zapriteService.verifyWebhookSignature(payload, sig as string);
-        
+
         if (!isValid) {
           console.log("Zaprite webhook signature verification failed");
           return res.status(400).send("Invalid signature");
@@ -649,7 +732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (event.type === "invoice.paid" && event.data) {
           const invoice = event.data;
           console.log("Bitcoin payment confirmed for invoice:", invoice.id);
-          
+
           // Find and update order status
           // Implementation will depend on how you store the Zaprite invoice ID
           // This would need to be added to your order creation flow
@@ -720,7 +803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const isValid = await uspsService.validateZipCode(zipCode);
-      
+
       res.json({
         zipCode,
         isValid,
@@ -740,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test with a sample zip code and default size
       const testZip = "90210"; // Beverly Hills, CA
       const sizeOptions = await storage.getAllSizeOptions();
-      
+
       if (sizeOptions.length === 0) {
         return res.status(404).json({ message: "No size options available for testing" });
       }

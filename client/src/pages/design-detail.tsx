@@ -224,32 +224,7 @@ export default function DesignDetail() {
               </Card>
             )}
 
-            {/* Design Features */}
-            <Card className="glass-morphism">
-              <CardHeader>
-                <CardTitle className="text-xl font-display font-bold text-electric">
-                  DESIGN FEATURES
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-matrix rounded-full"></div>
-                  <span className="text-gray-300 font-mono">Handcrafted premium glass art</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-matrix rounded-full"></div>
-                  <span className="text-gray-300 font-mono">Bitcoin-inspired cyberpunk design</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-matrix rounded-full"></div>
-                  <span className="text-gray-300 font-mono">Museum-quality materials</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-matrix rounded-full"></div>
-                  <span className="text-gray-300 font-mono">Secure packaging & fast shipping</span>
-                </div>
-              </CardContent>
-            </Card>
+            
           </div>
         </div>
       </div>
