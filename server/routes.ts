@@ -289,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create payment intent for cart-based orders
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      const { amount, items, customerInfo, designId, sizeOptionId } = req.body;
+      const { amount, items, customerInfo, designId, sizeOptionId, shippingMethod, shippingRate } = req.body;
 
       // Support both cart-based orders (new) and single-item orders (legacy)
       if (items && items.length > 0) {
@@ -308,7 +308,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             itemCount: items.length.toString(),
             customerName: customerInfo.name,
             customerEmail: customerInfo.email,
+            customerAddress: customerInfo.address,
+            customerZip: customerInfo.customerZip,
             cartItems: JSON.stringify(items),
+            shippingMethod: shippingMethod || "",
+            shippingRate: shippingRate?.toString() || "0",
           },
         });
 
@@ -350,6 +354,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sizeOptionId: sizeOptionId.toString(),
             customerName: customerInfo.name,
             customerEmail: customerInfo.email,
+            customerAddress: customerInfo.address,
+            shippingMethod: shippingMethod || "",
+            shippingRate: shippingRate?.toString() || "0",
           },
         });
 
@@ -365,6 +372,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ message: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  // Create order after successful Stripe payment
+  app.post("/api/complete-stripe-order", async (req, res) => {
+    try {
+      const { paymentIntentId } = req.body;
+
+      if (!paymentIntentId) {
+        return res.status(400).json({ message: "Payment intent ID is required" });
+      }
+
+      // Retrieve the payment intent from Stripe to get metadata
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      const metadata = paymentIntent.metadata;
+      const orderType = metadata.orderType;
+
+      let orderData;
+
+      if (orderType === "cart") {
+        // Cart-based order
+        const cartItems = JSON.parse(metadata.cartItems);
+        const firstItem = cartItems[0];
+
+        orderData = {
+          designId: firstItem.designId,
+          sizeOptionId: firstItem.sizeOptionId,
+          customerName: metadata.customerName,
+          customerEmail: metadata.customerEmail,
+          shippingAddress: metadata.customerAddress,
+          notes: `Cart order: ${cartItems.length} items - ${cartItems.map((item: any) => `${item.designId}x${item.quantity}`).join(', ')}`,
+          amount: (paymentIntent.amount / 100).toString(),
+          paymentMethod: "stripe",
+          paymentIntentId: paymentIntentId,
+          shippingMethod: metadata.shippingMethod,
+          shippingRate: metadata.shippingRate,
+        };
+      } else {
+        // Single item order
+        orderData = {
+          designId: parseInt(metadata.designId),
+          sizeOptionId: parseInt(metadata.sizeOptionId),
+          customerName: metadata.customerName,
+          customerEmail: metadata.customerEmail,
+          shippingAddress: metadata.customerAddress,
+          notes: "",
+          amount: (paymentIntent.amount / 100).toString(),
+          paymentMethod: "stripe",
+          paymentIntentId: paymentIntentId,
+          shippingMethod: metadata.shippingMethod,
+          shippingRate: metadata.shippingRate,
+        };
+      }
+
+      const order = await storage.createOrder(orderData);
+      console.log("Stripe order created:", order.id);
+
+      // Get design and size option details for email
+      const orderDetails = await storage.getOrderWithDetails(order.id);
+      if (!orderDetails) {
+        return res.status(404).json({ message: "Order details not found" });
+      }
+
+      // Prepare email data
+      const emailData = {
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        shippingAddress: order.shippingAddress,
+        productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+        productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+        productImage: orderDetails.design?.imageUrl || "",
+        amount: order.amount,
+        notes: order.notes || undefined,
+        orderId: order.id,
+      };
+
+      // Send both emails
+      try {
+        // Send manufacturer notification
+        const manufacturerEmailSent = await sendOrderNotification(emailData);
+        console.log("Manufacturer email sent:", manufacturerEmailSent);
+
+        // Send customer confirmation
+        const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+        console.log("Customer email sent:", customerEmailSent);
+
+        if (!manufacturerEmailSent || !customerEmailSent) {
+          console.warn("Some emails failed to send, but order was created successfully");
+        }
+      } catch (emailError: any) {
+        console.error("Email sending error:", emailError);
+        // Don't fail the order creation if emails fail
+      }
+
+      res.json({ 
+        success: true, 
+        orderId: order.id,
+        order: order 
+      });
+
+    } catch (error: any) {
+      console.error("Error completing Stripe order:", error);
+      res.status(500).json({ 
+        message: "Error completing order: " + error.message 
+      });
     }
   });
 

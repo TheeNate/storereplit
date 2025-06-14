@@ -100,12 +100,35 @@ const StripeCheckoutForm = ({
         console.log("Payment successful:", paymentIntent.id, "Status:", paymentIntent.status);
 
         if (paymentIntent.status === "succeeded") {
-          console.log("Cart payment succeeded, calling onSuccess");
-          toast({
-            title: "Payment Successful",
-            description: "Your order has been placed successfully!",
-          });
-          onSuccess();
+          console.log("Cart payment succeeded, creating order...");
+          
+          // Create the order in the database and send emails
+          try {
+            const orderResponse = await apiRequest("POST", "/api/complete-stripe-order", {
+              paymentIntentId: paymentIntent.id
+            });
+            
+            const orderData = await orderResponse.json();
+            
+            if (orderData.success) {
+              console.log("Order created successfully:", orderData.orderId);
+              toast({
+                title: "Payment Successful",
+                description: "Your order has been placed successfully!",
+              });
+              onSuccess();
+            } else {
+              throw new Error("Order creation failed");
+            }
+          } catch (orderError) {
+            console.error("Error creating order:", orderError);
+            toast({
+              title: "Payment Processed",
+              description: "Payment successful, but there was an issue processing your order. Please contact support.",
+              variant: "destructive",
+            });
+            onSuccess(); // Still navigate to success page since payment went through
+          }
         } else {
           console.log("Payment not succeeded, status:", paymentIntent.status);
           toast({
