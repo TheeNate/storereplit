@@ -540,7 +540,7 @@ export default function DesignDetail() {
                             <ShoppingCart className="mr-2" size={20} />
                             {isAddingToCart 
                               ? "ADDING..." 
-                              : `ADD TO CART - $${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}`}
+                              : `ADD TO CART - $${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}`}
                           </Button>
                           
                           <div className="text-center">
@@ -574,7 +574,7 @@ export default function DesignDetail() {
                           <CreditCard className="mr-2" size={20} />
                           {createPaymentIntentMutation.isPending
                             ? "PREPARING..."
-                            : `PAY WITH STRIPE - $${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}`}
+                            : `PAY WITH STRIPE - $${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}`}
                         </Button>
                       )}
 
@@ -587,7 +587,7 @@ export default function DesignDetail() {
                             onSuccess={handlePaymentSuccess}
                             amount={
                               selectedSize
-                                ? parseFloat(selectedSize.price).toFixed(0)
+                                ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0)
                                 : "0"
                             }
                             designTitle={design.title}
@@ -610,7 +610,7 @@ export default function DesignDetail() {
                           disabled={!selectedSizeId}
                         >
                           <Bitcoin className="mr-2" size={20} />
-                          PAY WITH BITCOIN - ${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}
+                          PAY WITH BITCOIN - ${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}
                         </Button>
                       )}
 
@@ -652,7 +652,7 @@ export default function DesignDetail() {
                       address: form.getValues('address'),
                       notes: form.getValues('notes'),
                     }}
-                    amount={selectedSize ? parseFloat(selectedSize.price).toFixed(2) : "0"}
+                    amount={selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(2) : "0"}
                     onSuccess={handleBitcoinPaymentSuccess}
                     onCancel={() => setShowBitcoinPayment(false)}
                   />
