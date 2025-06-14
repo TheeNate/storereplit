@@ -100,7 +100,7 @@ export default function Cart() {
     clearCart 
   } = useCart();
 
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | undefined>(undefined);
   const [clientSecret, setClientSecret] = useState("");
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
@@ -514,7 +514,7 @@ export default function Cart() {
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            setPaymentMethod(null);
+                            setPaymentMethod(undefined);
                             setClientSecret("");
                             setShowBitcoinPayment(false);
                           }}
@@ -548,7 +548,7 @@ export default function Cart() {
                   address: form.getValues('address'),
                   notes: form.getValues('notes'),
                 }}
-                amount={totalPrice.toFixed(2)}
+                amount={finalTotal.toFixed(2)}
                 onSuccess={handleBitcoinPaymentSuccess}
                 onCancel={() => setShowBitcoinPayment(false)}
               />
