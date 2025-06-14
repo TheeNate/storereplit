@@ -410,7 +410,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: `Cart order: ${cartItems.length} items - ${cartItems.map((item: any) => `${item.designId}x${item.quantity}`).join(', ')}`,
           amount: (paymentIntent.amount / 100).toString(),
           paymentMethod: "stripe",
-          paymentIntentId: paymentIntentId,
           shippingMethod: metadata.shippingMethod,
           shippingRate: metadata.shippingRate,
         };
@@ -425,7 +424,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: "",
           amount: (paymentIntent.amount / 100).toString(),
           paymentMethod: "stripe",
-          paymentIntentId: paymentIntentId,
           shippingMethod: metadata.shippingMethod,
           shippingRate: metadata.shippingRate,
         };
