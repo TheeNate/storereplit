@@ -11,7 +11,7 @@ import DesignDetail from "@/pages/design-detail";
 import Success from "@/pages/success";
 import Create from "@/pages/create";
 import Admin from "@/pages/admin";
-import Cart from "@/pages/cart";
+import Cart from "@/pages/cart-new";
 import NotFound from "@/pages/not-found";
 
 function Router() {

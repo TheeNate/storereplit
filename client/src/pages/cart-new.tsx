@@ -14,7 +14,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PaymentMethodSelector } from "@/components/payment-method-selector";
 import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
-import { ShippingCalculator } from "@/components/shipping-calculator";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
@@ -84,8 +83,7 @@ const StripeCheckoutForm = ({
         disabled={!stripe || isProcessing}
         className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
       >
-        <CreditCard className="mr-2" size={20} />
-        {isProcessing ? "PROCESSING..." : `COMPLETE PAYMENT - $${totalAmount}`}
+        {isProcessing ? "PROCESSING..." : `PAY $${totalAmount}`}
       </Button>
     </form>
   );
@@ -109,7 +107,6 @@ export default function Cart() {
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState<any>(null);
   const [shippingCost, setShippingCost] = useState(0);
-
   const [shippingOptions, setShippingOptions] = useState<any[]>([]);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
   const [shippingError, setShippingError] = useState<string>("");
@@ -199,10 +196,14 @@ export default function Cart() {
           quantity: item.quantity,
         })),
         customerInfo: {
-          ...data,
-          shippingMethod: selectedShipping?.service,
-          shippingRate: selectedShipping?.price,
+          name: data.name,
+          email: data.email,
+          address: `${data.streetAddress}${data.aptSuite ? '\n' + data.aptSuite : ''}\n${data.city}, ${data.state} ${data.zipCode}`,
+          notes: data.notes,
         },
+        customerZip: data.zipCode,
+        shippingMethod: selectedShipping?.service,
+        shippingRate: selectedShipping?.price,
       });
       return response.json();
     },
@@ -232,7 +233,7 @@ export default function Cart() {
     if (!selectedShipping) {
       toast({
         title: "Shipping Required",
-        description: "Please select a shipping method before proceeding",
+        description: "Please enter your ZIP code to calculate shipping",
         variant: "destructive",
       });
       return;
@@ -241,7 +242,6 @@ export default function Cart() {
     if (paymentMethod === 'stripe') {
       createPaymentIntentMutation.mutate(data);
     } else if (paymentMethod === 'bitcoin') {
-      // Store form data for Bitcoin payment
       setShowBitcoinPayment(true);
     }
   };
@@ -253,49 +253,46 @@ export default function Cart() {
 
   const handleBitcoinPaymentSuccess = (invoiceId: string) => {
     clearCart();
-    setLocation("/success");
+    setLocation(`/success?invoiceId=${invoiceId}`);
   };
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen pt-20">
+      <main className="min-h-screen bg-dark-surface text-white">
         <div className="container mx-auto px-4 py-8">
-          <div className="text-center max-w-md mx-auto">
-            <ShoppingCart className="w-24 h-24 text-gray-600 mx-auto mb-6" />
-            <h1 className="text-4xl font-display font-bold text-matrix mb-4">
+          <div className="text-center space-y-6">
+            <ShoppingCart className="mx-auto text-matrix" size={64} />
+            <h1 className="text-4xl font-display font-bold text-electric">
               EMPTY CART
             </h1>
-            <p className="text-gray-400 font-mono mb-8">
-              Your cart is currently empty. Browse our designs to add items.
+            <p className="text-gray-400 font-mono text-lg">
+              Your cart is empty. Start shopping to add items.
             </p>
-            <Link href="/">
-              <Button className="bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono px-8 py-3">
+            <Link to="/">
+              <Button className="bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105">
                 <ArrowLeft className="mr-2" size={20} />
-                BROWSE DESIGNS
+                CONTINUE SHOPPING
               </Button>
             </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen pt-20">
+    <main className="min-h-screen bg-dark-surface text-white">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Link href="/">
-            <Button variant="outline" className="mb-4">
-              <ArrowLeft className="mr-2" size={16} />
-              Back to Designs
+        <div className="flex items-center gap-4 mb-8">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="text-matrix hover:text-electric">
+              <ArrowLeft className="mr-2" size={20} />
+              Back to Shop
             </Button>
           </Link>
-          <h1 className="text-4xl font-display font-bold text-matrix mb-2">
-            SHOPPING CART
+          <h1 className="text-4xl font-display font-bold text-electric">
+            SHOPPING CART ({totalItems})
           </h1>
-          <p className="text-gray-400 font-mono">
-            {totalItems} item{totalItems !== 1 ? 's' : ''} in your cart
-          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -304,49 +301,43 @@ export default function Cart() {
             {items.map((item) => (
               <Card key={`${item.designId}-${item.sizeOptionId}`} className="glass-morphism">
                 <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-6">
                     <img
                       src={item.designImage}
                       alt={item.designTitle}
-                      className="w-20 h-20 object-cover rounded-lg"
+                      className="w-20 h-20 object-cover rounded-lg border border-matrix/30"
                     />
                     <div className="flex-1">
-                      <h3 className="text-white font-bold text-lg">
+                      <h3 className="text-xl font-mono font-bold text-white">
                         {item.designTitle}
                       </h3>
-                      <p className="text-gray-400 font-mono text-sm">
-                        {item.sizeOptionName}
-                      </p>
-                      <p className="text-matrix font-mono font-bold text-lg">
-                        ${parseFloat(item.price).toFixed(0)} each
-                      </p>
+                      <p className="text-gray-400 font-mono">{item.sizeOptionName}</p>
+                      <Badge variant="outline" className="text-matrix border-matrix">
+                        ${item.price}
+                      </Badge>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateQuantity(item.designId, item.sizeOptionId, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
+                        onClick={() => updateQuantity(item.designId, item.sizeOptionId, Math.max(1, item.quantity - 1))}
+                        className="border-matrix text-matrix hover:bg-matrix/20"
                       >
                         <Minus size={16} />
                       </Button>
-                      <span className="text-white font-mono font-bold px-3">
+                      <span className="text-white font-mono w-8 text-center">
                         {item.quantity}
                       </span>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => updateQuantity(item.designId, item.sizeOptionId, item.quantity + 1)}
+                        className="border-matrix text-matrix hover:bg-matrix/20"
                       >
                         <Plus size={16} />
                       </Button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-matrix font-mono font-bold text-xl">
-                        ${(parseFloat(item.price) * item.quantity).toFixed(0)}
-                      </p>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => removeFromCart(item.designId, item.sizeOptionId)}
                         className="text-red-400 hover:text-red-300"
@@ -376,7 +367,7 @@ export default function Cart() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 font-mono">Shipping</span>
                   <span className="text-matrix font-mono">
-                    {selectedShipping ? `$${shippingCost.toFixed(2)}` : "Calculate below"}
+                    {selectedShipping ? `$${shippingCost.toFixed(2)}` : "Enter ZIP below"}
                   </span>
                 </div>
                 <div className="border-t border-gray-700 pt-4">
@@ -415,117 +406,241 @@ export default function Cart() {
                 <CardContent>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onCheckoutSubmit)} className="space-y-6">
-                      <div className="grid grid-cols-1 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-matrix font-mono text-sm">
-                                NAME *
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="Satoshi Nakamoto"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-matrix font-mono text-sm">
-                                EMAIL *
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="satoshi@bitcoin.org"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="address"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-matrix font-mono text-sm">
-                                SHIPPING ADDRESS *
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="123 Bitcoin Blvd, Crypto City, CC"
-                                  rows={3}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="zipCode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-matrix font-mono text-sm">
-                                ZIP CODE *
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="12345"
-                                  maxLength={10}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-matrix font-mono text-sm">
-                                ORDER NOTES (OPTIONAL)
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="Special delivery instructions..."
-                                  rows={2}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      {/* Customer Information */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-white font-mono">CUSTOMER INFORMATION</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  NAME *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                    placeholder="Satoshi Nakamoto"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  EMAIL *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    type="email"
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                    placeholder="satoshi@bitcoin.org"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
 
-                      {/* Shipping Calculator */}
-                      {items.length > 0 && (
-                        <ShippingCalculator
-                          sizeOptionId={items[0].sizeOptionId}
-                          onShippingSelect={handleShippingSelect}
-                          selectedShipping={selectedShipping}
-                          initialZip={form.watch('zipCode') || ''}
+                      {/* Shipping Address Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="text-matrix" size={20} />
+                          <h3 className="text-lg font-bold text-white font-mono">SHIPPING ADDRESS</h3>
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="streetAddress"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                STREET ADDRESS *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                  placeholder="123 Blockchain Avenue"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
+
+                        <FormField
+                          control={form.control}
+                          name="aptSuite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                APT/SUITE (Optional)
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                  placeholder="Apt 2B, Suite 100, etc."
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  CITY *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                    placeholder="Crypto City"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="state"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  STATE *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                    placeholder="CA"
+                                    maxLength={2}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="zipCode"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-matrix font-mono text-sm">
+                                  ZIP CODE *
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                    placeholder="12345"
+                                    maxLength={10}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                                {isCalculatingShipping && (
+                                  <div className="flex items-center gap-2 text-matrix text-sm font-mono mt-2">
+                                    <Loader2 className="animate-spin" size={16} />
+                                    Calculating shipping...
+                                  </div>
+                                )}
+                                {shippingError && (
+                                  <p className="text-red-400 text-sm font-mono mt-2">{shippingError}</p>
+                                )}
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Real-time Shipping Options */}
+                      {shippingOptions.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <div className="text-matrix">📦</div>
+                            <h3 className="text-lg font-bold text-white font-mono">SHIPPING OPTIONS</h3>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {shippingOptions.map((option, index) => (
+                              <div
+                                key={index}
+                                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                                  selectedShipping?.service === option.service
+                                    ? "border-matrix bg-matrix/10"
+                                    : "border-gray-600 hover:border-matrix/50"
+                                }`}
+                                onClick={() => handleShippingSelect(option)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div
+                                      className={`w-4 h-4 rounded-full border-2 ${
+                                        selectedShipping?.service === option.service
+                                          ? "border-matrix bg-matrix"
+                                          : "border-gray-600"
+                                      }`}
+                                    />
+                                    <div>
+                                      <p className="text-white font-mono font-bold">
+                                        {option.icon} {option.description}
+                                      </p>
+                                      <p className="text-gray-400 text-sm font-mono">
+                                        {option.deliveryDays}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-matrix font-mono font-bold text-lg">
+                                    ${option.price.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
+
+                      {/* Notes */}
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-matrix font-mono text-sm">
+                              ORDER NOTES (Optional)
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                placeholder="Special instructions for your order..."
+                                rows={3}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       {/* Payment Method Selection */}
                       {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
@@ -555,7 +670,7 @@ export default function Cart() {
                         <Elements stripe={stripePromise} options={{ clientSecret }}>
                           <StripeCheckoutForm
                             onSuccess={handlePaymentSuccess}
-                            totalAmount={totalPrice.toFixed(0)}
+                            totalAmount={finalTotal.toFixed(0)}
                             cartItems={items}
                           />
                         </Elements>
@@ -596,30 +711,30 @@ export default function Cart() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Bitcoin Payment Form Modal/Overlay */}
+            {paymentMethod === 'bitcoin' && showBitcoinPayment && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="max-w-md w-full">
+                  <BitcoinPaymentForm
+                    designId={items[0].designId}
+                    sizeOptionId={items[0].sizeOptionId}
+                    customerInfo={{
+                      name: form.getValues('name'),
+                      email: form.getValues('email'),
+                      address: `${form.getValues('streetAddress')}${form.getValues('aptSuite') ? '\n' + form.getValues('aptSuite') : ''}\n${form.getValues('city')}, ${form.getValues('state')} ${form.getValues('zipCode')}`,
+                      notes: form.getValues('notes'),
+                    }}
+                    amount={finalTotal.toFixed(2)}
+                    onSuccess={handleBitcoinPaymentSuccess}
+                    onCancel={() => setShowBitcoinPayment(false)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Bitcoin Payment Modal */}
-        {paymentMethod === 'bitcoin' && showBitcoinPayment && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="max-w-md w-full">
-              <BitcoinPaymentForm
-                designId={items[0]?.designId || 0}
-                sizeOptionId={items[0]?.sizeOptionId || 0}
-                customerInfo={{
-                  name: form.getValues('name'),
-                  email: form.getValues('email'),
-                  address: form.getValues('address'),
-                  notes: form.getValues('notes'),
-                }}
-                amount={finalTotal.toFixed(2)}
-                onSuccess={handleBitcoinPaymentSuccess}
-                onCancel={() => setShowBitcoinPayment(false)}
-              />
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+    </main>
   );
 }

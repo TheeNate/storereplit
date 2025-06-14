@@ -1,0 +1,82 @@
+Integrate shipping calculator directly into address form - auto-calculate on ZIP entry
+Replace the current checkout flow to automatically calculate shipping when customer enters their ZIP code in the address form. Remove any separate "calculate shipping" steps.
+Current Flow Issues:
+
+Single textarea for entire address
+Customers must manually format with line breaks
+Looks unprofessional compared to standard checkouts
+Separate shipping calculation step
+Customer has to enter ZIP twice
+Extra friction in checkout process
+
+New Integrated Flow:
+1. Auto-Calculate Shipping:
+
+Trigger: When customer enters valid 5-digit ZIP in address form
+Action: Automatically call USPS API and show shipping options
+Update: Order total updates in real-time
+
+2. Address Form Integration:
+Customer Information:
+[Name] [Email]
+
+Shipping Address:
+[Street Address]
+[Apt/Suite (optional)]
+[City] [State ▼] [ZIP] ← Auto-calculate shipping on blur/change
+3. Real-Time Shipping Display:
+When ZIP is entered, immediately show below the form:
+📦 SHIPPING OPTIONS:
+○ USPS Priority Mail (2-3 days): $12.50
+○ USPS Priority Express (1-2 days): $28.70
+
+Order Summary:
+Items: $45.00
+Shipping: $12.50 (Priority Mail selected by default)
+Total: $57.50
+4. Implementation Details:
+ZIP Code Field Behavior:
+
+Validate ZIP format (5 digits)
+Debounce API calls (wait 500ms after typing stops)
+Show loading spinner during calculation
+Default to Priority Mail option
+Handle API errors gracefully
+
+Order Total Updates:
+
+Recalculate total when shipping method changes
+Update payment button amounts
+Show breakdown: "PAY $57.50 - Items: $45 + Shipping: $12.50"
+
+UX Enhancements:
+
+Show "Calculating shipping..." message
+Clear shipping options if ZIP is invalid
+Prevent checkout until shipping is calculated
+Remember selected shipping method
+
+5. Error Handling:
+
+Invalid ZIP: "Please enter a valid ZIP code"
+API failure: Fall back to zone-based rates
+No shipping available: Show customer service contact
+
+6. Mobile Optimization:
+
+Stack shipping options vertically on mobile
+Clear, touch-friendly radio buttons
+Responsive order summary
+
+User Experience Flow:
+
+Customer fills out name, email
+Enters address fields
+Types ZIP code → shipping automatically calculates
+Selects preferred shipping method
+Sees final total with shipping included
+Proceeds to payment
+
+Remove all separate shipping calculation steps. Make it seamless and automatic.
+
+we want to create a smooth, professional checkout experience like Amazon or other major e-commerce sites!

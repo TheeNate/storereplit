@@ -1,0 +1,65 @@
+I've successfully tested the Zaprite API and confirmed the working endpoint. Here's what I need you to implement:
+Zaprite API Details (CONFIRMED WORKING):
+
+Endpoint: https://api.zaprite.com/v1/order (singular "order")
+Method: POST
+Auth: Authorization: Bearer YOUR_API_KEY
+Response includes: checkoutUrl field for customer payment
+
+Required Environment Variables:
+ZAPRITE_API_KEY=your_api_key_here
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
+Implementation Requirements:
+
+Add payment method selector in design-detail.tsx:
+
+Show choice between Stripe (credit card) and Bitcoin
+Only show customer form after payment method selected
+Update payment button text based on method
+
+
+Create Zaprite API route (/api/zaprite/create-order):
+
+Use endpoint: https://api.zaprite.com/v1/order
+Send: amount, currency, description, customer_email, metadata
+Return: checkoutUrl from response
+
+
+Update design-detail payment flow:
+
+When Bitcoin selected: call Zaprite API instead of Stripe
+Redirect customer to checkoutUrl for Bitcoin payment
+Keep existing Stripe flow unchanged
+
+
+Add Zaprite webhook handler (/api/webhooks/zaprite):
+
+Handle incoming payment notifications from Zaprite
+Update order status in database
+Send confirmation emails (same as Stripe flow)
+Use existing order processing logic
+
+
+Key Integration Points:
+
+Zaprite orders should create same database records as Stripe orders
+Use same email notification system
+Same admin panel should show both payment types
+Keep all existing Stripe functionality working
+
+
+
+UI Requirements:
+
+Payment method selector with Bitcoin/credit card options
+Bitcoin payment button redirects to Zaprite checkout
+Match existing cyberpunk/matrix aesthetic
+Show Bitcoin amounts in BTC and USD
+
+Database:
+
+Add payment_method field to orders table ("stripe" or "bitcoin")
+Add zaprite_order_id field to track Zaprite order IDs
+Keep all existing order fields and relationships
+
+The app already has complete Stripe integration with order management, email notifications, and admin panel. Add Bitcoin as a second payment option without breaking existing functionality.
