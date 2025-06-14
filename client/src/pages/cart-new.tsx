@@ -50,42 +50,142 @@ const StripeCheckoutForm = ({
     event.preventDefault();
 
     if (!stripe || !elements) {
+      console.error("Stripe or Elements not loaded");
+      toast({
+        title: "Payment Error",
+        description: "Payment system not ready. Please try again.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsProcessing(true);
+    console.log("Starting cart payment confirmation...");
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/success`,
-      },
-    });
+    try {
+      // First, submit the payment element to collect payment method
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        console.error("Error submitting payment element:", submitError);
+        toast({
+          title: "Payment Error",
+          description: submitError.message || "Error submitting payment information",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
 
-    if (error) {
+      console.log("Payment element submitted successfully");
+
+      // Then confirm the payment with redirect disabled
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/success`,
+        },
+        redirect: "if_required", // This prevents automatic redirect
+      });
+
+      console.log("Payment confirmation result:", { error, paymentIntent });
+
+      if (error) {
+        console.error("Payment confirmation error:", error);
+        toast({
+          title: "Payment Failed",
+          description: error.message || "Payment could not be processed",
+          variant: "destructive",
+        });
+      } else if (paymentIntent) {
+        console.log("Payment successful:", paymentIntent.id, "Status:", paymentIntent.status);
+
+        if (paymentIntent.status === "succeeded") {
+          console.log("Cart payment succeeded, creating order...");
+          
+          // Create the order in the database and send emails
+          try {
+            const orderResponse = await apiRequest("POST", "/api/complete-stripe-order", {
+              paymentIntentId: paymentIntent.id
+            });
+            
+            const orderData = await orderResponse.json();
+            
+            if (orderData.success) {
+              console.log("Order created successfully:", orderData.orderId);
+              toast({
+                title: "Payment Successful",
+                description: "Your order has been placed successfully!",
+              });
+              onSuccess();
+            } else {
+              throw new Error("Order creation failed");
+            }
+          } catch (orderError) {
+            console.error("Error creating order:", orderError);
+            toast({
+              title: "Payment Processed",
+              description: "Payment successful, but there was an issue processing your order. Please contact support.",
+              variant: "destructive",
+            });
+            onSuccess(); // Still navigate to success page since payment went through
+          }
+        } else {
+          console.log("Payment not succeeded, status:", paymentIntent.status);
+          toast({
+            title: "Payment Incomplete",
+            description: `Payment status: ${paymentIntent.status}`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("No payment intent returned");
+        toast({
+          title: "Payment Error",
+          description: "No payment confirmation received",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Unexpected error during cart payment:", err);
       toast({
-        title: "Payment Failed",
-        description: error.message,
+        title: "Payment Error",
+        description: "An unexpected error occurred during payment",
         variant: "destructive",
       });
-    } else {
-      onSuccess();
     }
 
     setIsProcessing(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+    <div className="space-y-4">
+      <div className="p-4 bg-darker-surface rounded-lg border border-matrix/30">
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            paymentMethodOrder: ["card"],
+          }}
+          onReady={() => {
+            console.log("Cart PaymentElement is ready");
+          }}
+          onChange={(event) => {
+            console.log("Cart PaymentElement changed:", event);
+            if (event.error) {
+              console.error("Cart PaymentElement error:", event.error);
+            }
+          }}
+        />
+      </div>
       <Button
-        type="submit"
-        disabled={!stripe || isProcessing}
+        type="button"
+        onClick={handleSubmit}
+        disabled={!stripe || !elements || isProcessing}
         className="w-full py-4 bg-gradient-to-r from-matrix to-electric text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
       >
-        {isProcessing ? "PROCESSING..." : `PAY $${totalAmount}`}
+        <CreditCard className="mr-2" size={20} />
+        {isProcessing ? "PROCESSING..." : `COMPLETE PAYMENT - $${totalAmount}`}
       </Button>
-    </form>
+    </div>
   );
 };
 
@@ -666,15 +766,7 @@ export default function Cart() {
                         </Button>
                       )}
 
-                      {clientSecret && paymentMethod === 'stripe' && (
-                        <Elements stripe={stripePromise} options={{ clientSecret }}>
-                          <StripeCheckoutForm
-                            onSuccess={handlePaymentSuccess}
-                            totalAmount={finalTotal.toFixed(0)}
-                            cartItems={items}
-                          />
-                        </Elements>
-                      )}
+
 
                       {/* Bitcoin Payment */}
                       {paymentMethod === 'bitcoin' && !showBitcoinPayment && (
@@ -712,18 +804,43 @@ export default function Cart() {
               </Card>
             )}
 
+            {/* Stripe Payment Form (Outside main form to avoid nesting) */}
+            {clientSecret && paymentMethod === 'stripe' && (
+              <Card className="glass-morphism">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-display font-bold text-electric">
+                    STRIPE PAYMENT
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <StripeCheckoutForm
+                      onSuccess={handlePaymentSuccess}
+                      totalAmount={finalTotal.toFixed(0)}
+                      cartItems={items}
+                    />
+                  </Elements>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Bitcoin Payment Form Modal/Overlay */}
             {paymentMethod === 'bitcoin' && showBitcoinPayment && (
               <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                 <div className="max-w-md w-full">
                   <BitcoinPaymentForm
-                    designId={items[0].designId}
-                    sizeOptionId={items[0].sizeOptionId}
+                    cartItems={items.map(item => ({
+                      designId: item.designId,
+                      sizeOptionId: item.sizeOptionId,
+                      quantity: item.quantity,
+                    }))}
                     customerInfo={{
                       name: form.getValues('name'),
                       email: form.getValues('email'),
                       address: `${form.getValues('streetAddress')}${form.getValues('aptSuite') ? '\n' + form.getValues('aptSuite') : ''}\n${form.getValues('city')}, ${form.getValues('state')} ${form.getValues('zipCode')}`,
                       notes: form.getValues('notes'),
+                      shippingCost: shippingCost,
+                      shippingMethod: selectedShipping?.service,
                     }}
                     amount={finalTotal.toFixed(2)}
                     onSuccess={handleBitcoinPaymentSuccess}

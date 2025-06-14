@@ -8,13 +8,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 interface BitcoinPaymentFormProps {
-  designId: number;
-  sizeOptionId: number;
+  cartItems?: Array<{
+    designId: number;
+    sizeOptionId: number;
+    quantity: number;
+  }>;
+  designId?: number; // Legacy single item support
+  sizeOptionId?: number; // Legacy single item support
   customerInfo: {
     name: string;
     email: string;
     address: string;
     notes?: string;
+    shippingCost?: number;
+    shippingMethod?: string;
   };
   amount: string;
   onSuccess: (invoiceId: string) => void;
@@ -34,6 +41,7 @@ interface BitcoinInvoice {
 }
 
 export function BitcoinPaymentForm({
+  cartItems,
   designId,
   sizeOptionId,
   customerInfo,
@@ -51,21 +59,34 @@ export function BitcoinPaymentForm({
   const createInvoice = async () => {
     setIsLoading(true);
     try {
-      const response = await apiRequest("POST", "/api/create-bitcoin-invoice", {
+      const requestData = cartItems && cartItems.length > 0 ? {
+        // Cart-based order
+        cartItems,
+        customerInfo,
+        amount: parseFloat(amount),
+        shippingCost: customerInfo.shippingCost || 0,
+        shippingMethod: customerInfo.shippingMethod,
+      } : {
+        // Legacy single-item order
         designId,
         sizeOptionId,
         customerInfo,
-      });
+        amount: parseFloat(amount),
+        shippingCost: customerInfo.shippingCost || 0,
+        shippingMethod: customerInfo.shippingMethod,
+      };
+
+      const response = await apiRequest("POST", "/api/create-bitcoin-invoice", requestData);
       
       if (!response.ok) {
         throw new Error('Failed to create Bitcoin invoice');
       }
       
-      const invoiceData: BitcoinInvoice = await response.json();
+      const responseData: BitcoinInvoice = await response.json();
       
       // Redirect to Zaprite checkout URL
-      if (invoiceData.paymentUrl) {
-        window.location.href = invoiceData.paymentUrl;
+      if (responseData.paymentUrl) {
+        window.location.href = responseData.paymentUrl;
       } else {
         throw new Error('No payment URL received');
       }
