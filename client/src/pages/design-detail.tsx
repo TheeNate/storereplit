@@ -7,7 +7,7 @@ import {
   useElements,
   PaymentElement,
 } from "@stripe/react-stripe-js";
-import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin } from "lucide-react";
+import { CreditCard, UserRound, ArrowLeft, Check, Bitcoin, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,8 +28,10 @@ import { stripePromise } from "@/lib/stripe";
 import { apiRequest } from "@/lib/queryClient";
 import type { Design, SizeOption } from "@shared/schema";
 import { z } from "zod";
+import { useCart } from "@/lib/cart";
 import { PaymentMethodSelector } from "@/components/payment-method-selector";
 import { BitcoinPaymentForm } from "@/components/bitcoin-payment-form";
+import { ShippingCalculator } from "@/components/shipping-calculator";
 
 const orderSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -46,10 +48,13 @@ export default function DesignDetail() {
   const designId = parseInt(params.id || "0");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { addToCart } = useCart();
   const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bitcoin' | null>(null);
   const [showBitcoinPayment, setShowBitcoinPayment] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState<any>(null);
 
   const { data: design, isLoading: designLoading } = useQuery<Design>({
     queryKey: [`/api/designs/${designId}`],
@@ -78,10 +83,19 @@ export default function DesignDetail() {
         designId,
         sizeOptionId: selectedSizeId,
       });
+      const selectedSize = sizeOptions?.find(s => s.id === selectedSizeId);
+      const productPrice = parseFloat(selectedSize?.price || "0");
+      const shippingCost = selectedShipping?.price || 0;
+      const totalAmount = (productPrice + shippingCost).toFixed(2);
+      
       const response = await apiRequest("POST", "/api/create-payment-intent", {
         designId,
         sizeOptionId: selectedSizeId,
         customerInfo: data,
+        amount: totalAmount,
+        customerZip: data.address ? data.address.split('\n').pop()?.trim() : '',
+        shippingMethod: selectedShipping?.service,
+        shippingRate: selectedShipping?.price,
       });
       return response.json();
     },
@@ -134,11 +148,24 @@ export default function DesignDetail() {
     },
   });
 
+  const handleShippingSelect = (option: any) => {
+    setSelectedShipping(option);
+  };
+
   const onSubmit = (data: OrderForm) => {
     if (!design || !selectedSizeId) {
       toast({
         title: "Selection Required",
         description: "Please select a size before proceeding",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedShipping) {
+      toast({
+        title: "Shipping Required",
+        description: "Please select a shipping method before proceeding",
         variant: "destructive",
       });
       return;
@@ -237,11 +264,48 @@ export default function DesignDetail() {
   const handlePaymentMethodSelect = (method: 'stripe' | 'bitcoin') => {
     setPaymentMethod(method);
     if (method === 'bitcoin') {
-      setShowBitcoinPayment(true);
+      // Don't set showBitcoinPayment to true here
       setClientSecret(""); // Clear Stripe data
     } else {
       setShowBitcoinPayment(false);
       // Form submission will trigger Stripe payment intent creation
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!design || !selectedSizeId || !selectedSize) {
+      toast({
+        title: "Selection Required",
+        description: "Please select a size before adding to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingToCart(true);
+    
+    try {
+      addToCart({
+        designId: design.id,
+        sizeOptionId: selectedSizeId,
+        designTitle: design.title,
+        designImage: design.imageUrl,
+        sizeOptionName: selectedSize.name,
+        price: selectedSize.price,
+      });
+
+      toast({
+        title: "Added to Cart",
+        description: `${design.title} (${selectedSize.name}) added to your cart`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -454,8 +518,41 @@ export default function DesignDetail() {
                         )}
                       />
 
+                      {/* Shipping Calculator */}
+                      {selectedSizeId && (
+                        <ShippingCalculator
+                          sizeOptionId={selectedSizeId}
+                          onShippingSelect={handleShippingSelect}
+                          selectedShipping={selectedShipping}
+                          initialZip={form.watch('address') ? form.watch('address').split('\n').pop()?.trim() : ''}
+                        />
+                      )}
+
+                      {/* Add to Cart Button */}
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
+                        <div className="space-y-4">
+                          <Button
+                            type="button"
+                            onClick={handleAddToCart}
+                            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
+                            disabled={!selectedSizeId || isAddingToCart}
+                          >
+                            <ShoppingCart className="mr-2" size={20} />
+                            {isAddingToCart 
+                              ? "ADDING..." 
+                              : `ADD TO CART - $${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}`}
+                          </Button>
+                          
+                          <div className="text-center">
+                            <p className="text-gray-400 font-mono text-sm mb-4">
+                              OR
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Payment Method Selection */}
-                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
                         <div className="space-y-6">
                           <PaymentMethodSelector
                             onSelect={handlePaymentMethodSelect}
@@ -477,7 +574,7 @@ export default function DesignDetail() {
                           <CreditCard className="mr-2" size={20} />
                           {createPaymentIntentMutation.isPending
                             ? "PREPARING..."
-                            : `PAY WITH STRIPE - $${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}`}
+                            : `PAY WITH STRIPE - $${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}`}
                         </Button>
                       )}
 
@@ -490,7 +587,7 @@ export default function DesignDetail() {
                             onSuccess={handlePaymentSuccess}
                             amount={
                               selectedSize
-                                ? parseFloat(selectedSize.price).toFixed(0)
+                                ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0)
                                 : "0"
                             }
                             designTitle={design.title}
@@ -513,7 +610,7 @@ export default function DesignDetail() {
                           disabled={!selectedSizeId}
                         >
                           <Bitcoin className="mr-2" size={20} />
-                          PAY WITH BITCOIN - ${selectedSize ? parseFloat(selectedSize.price).toFixed(0) : "0"}
+                          PAY WITH BITCOIN - ${selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(0) : "0"}
                         </Button>
                       )}
 
@@ -543,7 +640,7 @@ export default function DesignDetail() {
             )}
 
             {/* Bitcoin Payment Form Modal/Overlay */}
-            {paymentMethod === 'bitcoin' && showBitcoinPayment && form.formState.isValid && (
+            {paymentMethod === 'bitcoin' && showBitcoinPayment && (
               <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                 <div className="max-w-md w-full">
                   <BitcoinPaymentForm
@@ -555,7 +652,7 @@ export default function DesignDetail() {
                       address: form.getValues('address'),
                       notes: form.getValues('notes'),
                     }}
-                    amount={selectedSize ? parseFloat(selectedSize.price).toFixed(2) : "0"}
+                    amount={selectedSize ? (parseFloat(selectedSize.price) + (selectedShipping?.price || 0)).toFixed(2) : "0"}
                     onSuccess={handleBitcoinPaymentSuccess}
                     onCancel={() => setShowBitcoinPayment(false)}
                   />

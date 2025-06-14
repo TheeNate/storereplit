@@ -45,6 +45,9 @@ export const orders = pgTable("orders", {
   customerName: text("customer_name").notNull(),
   customerEmail: text("customer_email").notNull(),
   shippingAddress: text("shipping_address").notNull(),
+  customerZip: text("customer_zip"),
+  shippingMethod: text("shipping_method"), // "PRIORITY_MAIL" or "PRIORITY_MAIL_EXPRESS"
+  shippingRate: decimal("shipping_rate", { precision: 10, scale: 2 }),
   notes: text("notes"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentMethod: text("payment_method").notNull().default("stripe"), // "stripe" or "bitcoin"

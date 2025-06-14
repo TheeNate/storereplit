@@ -11,6 +11,7 @@ import DesignDetail from "@/pages/design-detail";
 import Success from "@/pages/success";
 import Create from "@/pages/create";
 import Admin from "@/pages/admin";
+import Cart from "@/pages/cart";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/design/:id" component={DesignDetail} />
+          <Route path="/cart" component={Cart} />
           <Route path="/success" component={Success} />
           <Route path="/create" component={Create} />
           <Route path="/admin" component={Admin} />

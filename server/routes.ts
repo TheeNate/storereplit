@@ -2,6 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
+import axios from "axios";
 import multer from "multer";
 import path from "path";
 import { storage } from "./storage";
@@ -13,13 +14,14 @@ import {
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
 import { zapriteService } from "./zaprite";
+import { uspsService } from "./usps-rates";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-04-30.basil",
 });
 
 // Configure multer for file uploads
@@ -284,51 +286,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // NEW: Create payment intent for design + size combination
+  // Create payment intent for cart-based orders
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      const { designId, sizeOptionId, customerInfo } = req.body;
+      const { amount, items, customerInfo, designId, sizeOptionId } = req.body;
 
-      console.log("Creating payment intent for design + size:", {
-        designId,
-        sizeOptionId,
-      });
+      // Support both cart-based orders (new) and single-item orders (legacy)
+      if (items && items.length > 0) {
+        // Cart-based order with multiple items
+        console.log("Creating payment intent for cart:", { items, amount });
+        
+        // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
+        const chargeAmount = Math.max(Math.round(amount * 100), 50);
 
-      // Get the size option to determine pricing
-      const sizeOption = await storage.getSizeOption(sizeOptionId);
-      if (!sizeOption) {
-        return res.status(404).json({ message: "Size option not found" });
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: chargeAmount,
+          currency: "usd",
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            orderType: "cart",
+            itemCount: items.length.toString(),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+            cartItems: JSON.stringify(items),
+          },
+        });
+
+        console.log("Cart payment intent created:", paymentIntent.id);
+        res.json({ clientSecret: paymentIntent.client_secret });
+      } else if (designId && sizeOptionId) {
+        // Legacy single-item order
+        console.log("Creating payment intent for design + size:", {
+          designId,
+          sizeOptionId,
+        });
+
+        // Get the size option to determine pricing
+        const sizeOption = await storage.getSizeOption(sizeOptionId);
+        if (!sizeOption) {
+          return res.status(404).json({ message: "Size option not found" });
+        }
+
+        // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
+        const chargeAmount = Math.max(
+          Math.round(parseFloat(sizeOption.price) * 100),
+          50,
+        );
+
+        console.log("Creating payment intent:", {
+          amount: sizeOption.price,
+          chargeAmount,
+          designId,
+          sizeOptionId,
+        });
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: chargeAmount,
+          currency: "usd",
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            orderType: "single",
+            designId: designId.toString(),
+            sizeOptionId: sizeOptionId.toString(),
+            customerName: customerInfo.name,
+            customerEmail: customerInfo.email,
+          },
+        });
+
+        console.log("Payment intent created:", paymentIntent.id);
+        res.json({ clientSecret: paymentIntent.client_secret });
+      } else {
+        return res.status(400).json({ 
+          message: "Either cart items or design/size selection is required" 
+        });
       }
-
-      // Convert amount to cents and ensure minimum amount for Stripe (50 cents)
-      const chargeAmount = Math.max(
-        Math.round(parseFloat(sizeOption.price) * 100),
-        50,
-      );
-
-      console.log("Creating payment intent:", {
-        amount: sizeOption.price,
-        chargeAmount,
-        designId,
-        sizeOptionId,
-      });
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: chargeAmount,
-        currency: "usd",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          designId: designId.toString(),
-          sizeOptionId: sizeOptionId.toString(),
-          customerName: customerInfo.name,
-          customerEmail: customerInfo.email,
-        },
-      });
-
-      console.log("Payment intent created:", paymentIntent.id);
-      res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
       console.error("Stripe error:", error);
       res
@@ -337,11 +372,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Zaprite Bitcoin invoice creation
+  // Test Zaprite API connection
+  app.get("/api/test-zaprite", async (req, res) => {
+    try {
+      const response = await axios.get("https://api.zaprite.com/v1/account", {
+        headers: {
+          Authorization: `Bearer ${process.env.ZAPRITE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      });
+      res.json({ 
+        status: "success", 
+        message: "Zaprite API connection successful",
+        account: response.data 
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        status: "error",
+        message: "Zaprite API connection failed",
+        error: error.response?.data || error.message 
+      });
+    }
+  });
+
+  // Zaprite Bitcoin order creation
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
       const { designId, sizeOptionId, customerInfo } = req.body;
-      console.log("Creating Bitcoin invoice for design + size:", { designId, sizeOptionId });
+      console.log("Creating Bitcoin order for design + size:", { designId, sizeOptionId });
       
       // Fetch the design and size option
       const design = await storage.getDesign(designId);
@@ -354,14 +412,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const amount = parseFloat(sizeOption.price);
       const chargeAmount = Math.round(amount * 100); // Convert to cents for Zaprite
 
-      console.log("Creating Bitcoin invoice:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+      console.log("Creating Bitcoin order:", { amount: sizeOption.price, chargeAmount, designId, sizeOptionId });
+
+      // Create order in database first
+      const order = await storage.createOrder({
+        designId,
+        sizeOptionId,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        shippingAddress: customerInfo.address,
+        notes: customerInfo.notes,
+        amount: sizeOption.price,
+        paymentMethod: "bitcoin",
+      });
 
       const invoice = await zapriteService.createInvoice({
         amount: chargeAmount,
         description: `${design.title} - ${sizeOption.name}`,
-        customerName: customerInfo.name,
         customerEmail: customerInfo.email,
         metadata: {
+          orderId: order.id.toString(),
           designId: designId.toString(),
           sizeOptionId: sizeOptionId.toString(),
           customerName: customerInfo.name,
@@ -369,13 +439,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      console.log("Bitcoin invoice created:", invoice.id);
+      // Update order with Zaprite invoice ID
+      await storage.updateOrderZapriteId(order.id, invoice.id);
+
+      console.log("Bitcoin order created:", invoice.id);
       res.json(invoice);
     } catch (error: any) {
       console.error("Zaprite error:", error);
       res
         .status(500)
-        .json({ message: "Error creating Bitcoin invoice: " + error.message });
+        .json({ 
+          message: "Bitcoin payment service unavailable: " + error.message,
+          suggestion: "Please use credit card payment or contact support to verify Bitcoin payment setup"
+        });
     }
   });
 
@@ -586,6 +662,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  // USPS Shipping Rate API endpoints
+  app.post("/api/shipping/calculate", async (req, res) => {
+    try {
+      const { destinationZip, sizeOptionId } = req.body;
+
+      if (!destinationZip || !sizeOptionId) {
+        return res.status(400).json({ 
+          message: "Destination zip code and size option ID are required" 
+        });
+      }
+
+      // Validate zip code format
+      const isValidZip = await uspsService.validateZipCode(destinationZip);
+      if (!isValidZip) {
+        return res.status(400).json({ 
+          message: "Invalid zip code format. Please use 5-digit format (e.g., 12345)" 
+        });
+      }
+
+      // Get size option details
+      const sizeOption = await storage.getSizeOption(sizeOptionId);
+      if (!sizeOption) {
+        return res.status(404).json({ message: "Size option not found" });
+      }
+
+      console.log(`Calculating shipping rates for ${sizeOption.name} to ${destinationZip}`);
+
+      // Get shipping rates from USPS
+      const shippingOptions = await uspsService.getShippingRates(destinationZip, sizeOption.name);
+
+      res.json({
+        destinationZip,
+        sizeOption: {
+          id: sizeOption.id,
+          name: sizeOption.name,
+          size: sizeOption.size,
+        },
+        shippingOptions,
+      });
+    } catch (error: any) {
+      console.error("Error calculating shipping rates:", error);
+      res.status(500).json({ 
+        message: "Error calculating shipping rates: " + error.message 
+      });
+    }
+  });
+
+  // Validate zip code endpoint
+  app.post("/api/shipping/validate-zip", async (req, res) => {
+    try {
+      const { zipCode } = req.body;
+
+      if (!zipCode) {
+        return res.status(400).json({ message: "Zip code is required" });
+      }
+
+      const isValid = await uspsService.validateZipCode(zipCode);
+      
+      res.json({
+        zipCode,
+        isValid,
+        message: isValid ? "Valid zip code" : "Invalid zip code format",
+      });
+    } catch (error: any) {
+      console.error("Error validating zip code:", error);
+      res.status(500).json({ 
+        message: "Error validating zip code: " + error.message 
+      });
+    }
+  });
+
+  // Test USPS API connection
+  app.get("/api/shipping/test-usps", async (req, res) => {
+    try {
+      // Test with a sample zip code and default size
+      const testZip = "90210"; // Beverly Hills, CA
+      const sizeOptions = await storage.getAllSizeOptions();
+      
+      if (sizeOptions.length === 0) {
+        return res.status(404).json({ message: "No size options available for testing" });
+      }
+
+      const testSize = sizeOptions[0];
+      const shippingOptions = await uspsService.getShippingRates(testZip, testSize.name);
+
+      res.json({
+        status: "success",
+        message: "USPS API connection successful",
+        testZip,
+        testSize: testSize.name,
+        shippingOptions,
+      });
+    } catch (error: any) {
+      console.error("USPS API test failed:", error);
+      res.status(500).json({
+        status: "error",
+        message: "USPS API connection failed",
+        error: error.message,
+      });
+    }
+  });
 
   // Serve uploaded files
   app.use("/uploads", express.static("uploads"));

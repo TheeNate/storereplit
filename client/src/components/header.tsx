@@ -2,16 +2,12 @@ import { Link, useLocation } from "wouter";
 import { ShoppingCart, Bitcoin, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { useState } from "react";
+
+import { useCart } from "@/lib/cart";
 
 export function Header() {
   const [location] = useLocation();
-  const [cartItems] = useState<any[]>([]); // This would normally come from a cart context/store
+  const { items: cartItems, totalItems, totalPrice } = useCart();
 
   const navigation = [
     { name: "PRODUCTS", href: "/" },
@@ -32,15 +28,15 @@ export function Header() {
         <div className="p-4">
           <div className="space-y-4 mb-4">
             {cartItems.map((item, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 bg-darker-surface rounded-lg">
+              <div key={`${item.designId}-${item.sizeOptionId}`} className="flex items-center space-x-3 p-3 bg-darker-surface rounded-lg">
                 <img
-                  src={item.image}
-                  alt={item.name}
+                  src={item.designImage}
+                  alt={item.designTitle}
                   className="w-12 h-12 object-cover rounded"
                 />
                 <div className="flex-1">
-                  <h4 className="text-white font-mono text-sm">{item.name}</h4>
-                  <p className="text-gray-400 font-mono text-xs">{item.size}</p>
+                  <h4 className="text-white font-mono text-sm">{item.designTitle}</h4>
+                  <p className="text-gray-400 font-mono text-xs">{item.sizeOptionName}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-matrix font-mono text-sm">${item.price}</p>
@@ -53,7 +49,7 @@ export function Header() {
             <div className="flex justify-between items-center mb-4">
               <span className="text-white font-mono">Total:</span>
               <span className="text-matrix font-mono text-lg font-bold">
-                ${cartItems.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)}
+                ${totalPrice.toFixed(2)}
               </span>
             </div>
             <Button className="w-full cyber-border text-matrix border-matrix hover:bg-matrix hover:text-black font-mono">
@@ -89,22 +85,17 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button className="cyber-border hover:shadow-neon-green font-mono relative">
-                  <ShoppingCart className="mr-2" size={16} />
-                  CART
-                  {cartItems.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-matrix text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {cartItems.length}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="glass-morphism border-matrix/30" align="end">
-                <CartDropdown />
-              </PopoverContent>
-            </Popover>
+            <Link href="/cart">
+              <Button className="cyber-border hover:shadow-neon-green font-mono relative">
+                <ShoppingCart className="mr-2" size={16} />
+                CART
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-matrix text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Navigation */}
@@ -125,10 +116,12 @@ export function Header() {
                     {item.name}
                   </Link>
                 ))}
-                <Button className="cyber-border hover:shadow-neon-green font-mono mt-4">
-                  <ShoppingCart className="mr-2" size={16} />
-                  CART
-                </Button>
+                <Link href="/cart">
+                  <Button className="cyber-border hover:shadow-neon-green font-mono mt-4 w-full">
+                    <ShoppingCart className="mr-2" size={16} />
+                    CART ({totalItems})
+                  </Button>
+                </Link>
               </div>
             </SheetContent>
           </Sheet>
