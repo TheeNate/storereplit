@@ -1,0 +1,67 @@
+Convert single design page from direct checkout to cart-only workflow
+The single design page currently has a direct checkout flow that bypasses the cart. Change it to use the cart system exclusively for consistency.
+Current Single Design Page Issues:
+
+Circular radio buttons for size selection
+Direct checkout form appears below when size selected
+Bypasses the cart system entirely
+Inconsistent with cart-based checkout flow
+
+Required Changes:
+1. Replace Size Selection Interface:
+Current: 4 boxes with prices and circular radio button selectors
+New: 4 boxes with prices and "ADD TO CART" buttons
+Each size box should have:
+
+Size name and description (keep existing)
+Price display (keep existing)
+"ADD TO CART" button instead of circular selector
+Button shows cart icon + "ADD TO CART" text
+
+2. Remove Entire Checkout Section:
+Delete completely:
+
+Customer information form
+Address fields
+Payment method selection (Stripe/Bitcoin)
+Payment processing components
+All checkout-related state management
+
+3. Add Simple Cart Navigation:
+Replace checkout section with:
+
+"PROCEED TO CHECKOUT" button (only shows if cart has items)
+Button links to /cart page
+Shows current cart item count
+Matches cyberpunk/matrix design theme
+
+4. Add to Cart Functionality:
+When "ADD TO CART" button clicked:
+
+Add item to cart state (designId + sizeId)
+Show success notification: "Added to cart!"
+Update cart badge in header
+Keep user on design page (don't navigate away)
+
+5. Updated User Flow:
+
+Browse design page
+Click "ADD TO CART" on desired size
+Item added to cart with confirmation
+Click "PROCEED TO CHECKOUT" to go to cart
+Complete order through existing cart checkout flow
+
+6. Design Requirements:
+
+"ADD TO CART" buttons match existing button styling
+Use shopping cart icon from Lucide React
+Maintain existing hover effects and animations
+Keep size box selection visual feedback (highlight when hovering)
+
+Files to Update:
+
+design-detail.tsx - Remove checkout flow, add cart buttons
+Cart state management - Ensure single design additions work
+Remove single design payment processing routes if they exist
+
+Result: Clean product browsing page that feeds into the perfect cart system you already have. All orders go through cart for consistency.
