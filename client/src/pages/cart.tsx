@@ -113,20 +113,32 @@ export default function Cart() {
       name: "",
       email: "",
       address: "",
+      zipCode: "",
       notes: "",
     },
   });
 
+  const handleShippingSelect = (shippingOption: any) => {
+    setSelectedShipping(shippingOption);
+    setShippingCost(shippingOption.price);
+  };
+
+  const finalTotal = totalPrice + shippingCost;
+
   const createPaymentIntentMutation = useMutation({
     mutationFn: async (data: CheckoutForm) => {
       const response = await apiRequest("POST", "/api/create-payment-intent", {
-        amount: parseFloat(totalPrice.toFixed(2)),
+        amount: parseFloat(finalTotal.toFixed(2)),
         items: items.map(item => ({
           designId: item.designId,
           sizeOptionId: item.sizeOptionId,
           quantity: item.quantity,
         })),
-        customerInfo: data,
+        customerInfo: {
+          ...data,
+          shippingMethod: selectedShipping?.service,
+          shippingRate: selectedShipping?.price,
+        },
       });
       return response.json();
     },
@@ -153,6 +165,15 @@ export default function Cart() {
   };
 
   const onCheckoutSubmit = (data: CheckoutForm) => {
+    if (!selectedShipping) {
+      toast({
+        title: "Shipping Required",
+        description: "Please select a shipping method before proceeding",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (paymentMethod === 'stripe') {
       createPaymentIntentMutation.mutate(data);
     } else if (paymentMethod === 'bitcoin') {
@@ -290,15 +311,22 @@ export default function Cart() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 font-mono">Shipping</span>
-                  <span className="text-matrix font-mono">FREE</span>
+                  <span className="text-matrix font-mono">
+                    {selectedShipping ? `$${shippingCost.toFixed(2)}` : "Calculate below"}
+                  </span>
                 </div>
                 <div className="border-t border-gray-700 pt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-mono font-bold text-lg">Total</span>
                     <span className="text-matrix font-mono font-bold text-2xl">
-                      ${totalPrice.toFixed(0)}
+                      ${finalTotal.toFixed(0)}
                     </span>
                   </div>
+                  {selectedShipping && (
+                    <p className="text-gray-400 font-mono text-xs mt-1">
+                      Includes {selectedShipping.description}
+                    </p>
+                  )}
                 </div>
                 
                 {!showCheckoutForm && (
@@ -375,8 +403,28 @@ export default function Cart() {
                                 <Textarea
                                   {...field}
                                   className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                  placeholder="123 Bitcoin Blvd, Crypto City, CC 12345"
+                                  placeholder="123 Bitcoin Blvd, Crypto City, CC"
                                   rows={3}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="zipCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-matrix font-mono text-sm">
+                                ZIP CODE *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="bg-darker-surface border-matrix/30 text-white font-mono"
+                                  placeholder="12345"
+                                  maxLength={10}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -405,8 +453,18 @@ export default function Cart() {
                         />
                       </div>
 
+                      {/* Shipping Calculator */}
+                      {items.length > 0 && (
+                        <ShippingCalculator
+                          sizeOptionId={items[0].sizeOptionId}
+                          onShippingSelect={handleShippingSelect}
+                          selectedShipping={selectedShipping}
+                          initialZip={form.watch('zipCode') || ''}
+                        />
+                      )}
+
                       {/* Payment Method Selection */}
-                      {!paymentMethod && !clientSecret && !showBitcoinPayment && (
+                      {!paymentMethod && !clientSecret && !showBitcoinPayment && selectedShipping && (
                         <div className="space-y-6">
                           <PaymentMethodSelector
                             onSelect={handlePaymentMethodSelect}
@@ -425,7 +483,7 @@ export default function Cart() {
                           <CreditCard className="mr-2" size={20} />
                           {createPaymentIntentMutation.isPending
                             ? "PREPARING..."
-                            : `PAY WITH STRIPE - $${totalPrice.toFixed(0)}`}
+                            : `PAY WITH STRIPE - $${finalTotal.toFixed(0)}`}
                         </Button>
                       )}
 
@@ -446,7 +504,7 @@ export default function Cart() {
                           className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold font-mono rounded-lg hover:shadow-cyber transition-all transform hover:scale-105"
                         >
                           <Bitcoin className="mr-2" size={20} />
-                          PAY WITH BITCOIN - ${totalPrice.toFixed(0)}
+                          PAY WITH BITCOIN - ${finalTotal.toFixed(0)}
                         </Button>
                       )}
 
