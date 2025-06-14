@@ -64,12 +64,16 @@ export function BitcoinPaymentForm({
         cartItems,
         customerInfo,
         amount: parseFloat(amount),
+        shippingCost: customerInfo.shippingCost || 0,
+        shippingMethod: customerInfo.shippingMethod,
       } : {
         // Legacy single-item order
         designId,
         sizeOptionId,
         customerInfo,
         amount: parseFloat(amount),
+        shippingCost: customerInfo.shippingCost || 0,
+        shippingMethod: customerInfo.shippingMethod,
       };
 
       const response = await apiRequest("POST", "/api/create-bitcoin-invoice", requestData);
