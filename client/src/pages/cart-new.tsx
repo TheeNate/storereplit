@@ -612,7 +612,7 @@ export default function Cart() {
                                   <Input
                                     {...field}
                                     className="bg-darker-surface border-matrix/30 text-white font-mono"
-                                    placeholder="Crypto City"
+                                    placeholder="Citadel City"
                                   />
                                 </FormControl>
                                 <FormMessage />
