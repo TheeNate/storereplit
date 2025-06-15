@@ -386,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Retrieve the payment intent from Stripe to get metadata
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
+      
       if (paymentIntent.status !== "succeeded") {
         return res.status(400).json({ message: "Payment not completed" });
       }
@@ -510,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-bitcoin-invoice", async (req, res) => {
     try {
       const { items, cartItems, customerInfo, shippingCost = 0, shippingMethod, designId, sizeOptionId, amount } = req.body;
-
+      
       // Handle both parameter names for compatibility
       const orderItems = items || cartItems;
 
@@ -584,7 +584,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update order with Zaprite invoice ID
         await storage.updateOrderZapriteId(order.id, invoice.id);
 
-        // ✅ Do not send emails here - wait for payment confirmation via webhook
+        // Send emails immediately (same as Stripe payments)
+        const orderDetails = await storage.getOrderWithDetails(order.id);
+        if (orderDetails) {
+          const emailData = {
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            shippingAddress: order.shippingAddress,
+            productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+            productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+            productImage: orderDetails.design?.imageUrl || "",
+            amount: order.amount,
+            notes: order.notes || undefined,
+            orderId: order.id,
+          };
+
+          try {
+            // Send manufacturer notification
+            const manufacturerEmailSent = await sendOrderNotification(emailData);
+            console.log("Bitcoin manufacturer email sent:", manufacturerEmailSent);
+
+            // Send customer confirmation
+            const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+            console.log("Bitcoin customer email sent:", customerEmailSent);
+          } catch (emailError: any) {
+            console.error("Bitcoin email sending error:", emailError);
+            // Don't fail the order creation if emails fail
+          }
+        }
 
         console.log("Cart Bitcoin invoice created:", invoice.id);
         res.json(invoice);
@@ -641,7 +668,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         await storage.updateOrderZapriteId(order.id, invoice.id);
 
-        // ✅ Do not send emails here - wait for payment confirmation via webhook
+        // Send emails immediately (same as Stripe payments)
+        const orderDetails = await storage.getOrderWithDetails(order.id);
+        if (orderDetails) {
+          const emailData = {
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            shippingAddress: order.shippingAddress,
+            productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+            productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+            productImage: orderDetails.design?.imageUrl || "",
+            amount: order.amount,
+            notes: order.notes || undefined,
+            orderId: order.id,
+          };
+
+          try {
+            // Send manufacturer notification
+            const manufacturerEmailSent = await sendOrderNotification(emailData);
+            console.log("Bitcoin manufacturer email sent:", manufacturerEmailSent);
+
+            // Send customer confirmation
+            const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+            console.log("Bitcoin customer email sent:", customerEmailSent);
+          } catch (emailError: any) {
+            console.error("Bitcoin email sending error:", emailError);
+            // Don't fail the order creation if emails fail
+          }
+        }
 
         console.log("Single item Bitcoin invoice created:", invoice.id);
         res.json(invoice);
