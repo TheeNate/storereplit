@@ -584,6 +584,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update order with Zaprite invoice ID
         await storage.updateOrderZapriteId(order.id, invoice.id);
 
+        // Send emails immediately (same as Stripe payments)
+        const orderDetails = await storage.getOrderWithDetails(order.id);
+        if (orderDetails) {
+          const emailData = {
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            shippingAddress: order.shippingAddress,
+            productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+            productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+            productImage: orderDetails.design?.imageUrl || "",
+            amount: order.amount,
+            notes: order.notes || undefined,
+            orderId: order.id,
+          };
+
+          try {
+            // Send manufacturer notification
+            const manufacturerEmailSent = await sendOrderNotification(emailData);
+            console.log("Bitcoin manufacturer email sent:", manufacturerEmailSent);
+
+            // Send customer confirmation
+            const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+            console.log("Bitcoin customer email sent:", customerEmailSent);
+          } catch (emailError: any) {
+            console.error("Bitcoin email sending error:", emailError);
+            // Don't fail the order creation if emails fail
+          }
+        }
+
         console.log("Cart Bitcoin invoice created:", invoice.id);
         res.json(invoice);
 
@@ -638,6 +667,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         await storage.updateOrderZapriteId(order.id, invoice.id);
+
+        // Send emails immediately (same as Stripe payments)
+        const orderDetails = await storage.getOrderWithDetails(order.id);
+        if (orderDetails) {
+          const emailData = {
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            shippingAddress: order.shippingAddress,
+            productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+            productDescription: `Design: ${orderDetails.design?.description}\n\nSize: ${orderDetails.sizeOption?.description}`,
+            productImage: orderDetails.design?.imageUrl || "",
+            amount: order.amount,
+            notes: order.notes || undefined,
+            orderId: order.id,
+          };
+
+          try {
+            // Send manufacturer notification
+            const manufacturerEmailSent = await sendOrderNotification(emailData);
+            console.log("Bitcoin manufacturer email sent:", manufacturerEmailSent);
+
+            // Send customer confirmation
+            const customerEmailSent = await sendCustomerOrderConfirmation(emailData);
+            console.log("Bitcoin customer email sent:", customerEmailSent);
+          } catch (emailError: any) {
+            console.error("Bitcoin email sending error:", emailError);
+            // Don't fail the order creation if emails fail
+          }
+        }
 
         console.log("Single item Bitcoin invoice created:", invoice.id);
         res.json(invoice);
@@ -851,9 +909,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const invoice = event.data;
           console.log("Bitcoin payment confirmed for invoice:", invoice.id);
 
-          // Find and update order status
-          // Implementation will depend on how you store the Zaprite invoice ID
-          // This would need to be added to your order creation flow
+          // Find the order by Zaprite invoice ID
+          const order = await storage.getOrderByZapriteId(invoice.id);
+          if (order) {
+            // Update order status to confirmed
+            await storage.updateOrderStatus(order.id, "confirmed");
+
+            // Send customer confirmation email
+            const orderDetails = await storage.getOrderWithDetails(order.id);
+            if (orderDetails) {
+              const emailData = {
+                customerName: order.customerName,
+                customerEmail: order.customerEmail,
+                shippingAddress: order.shippingAddress,
+                productTitle: `${orderDetails.design?.title} - ${orderDetails.sizeOption?.name}`,
+                productDescription: `Design: ${orderDetails.design?.description}`,
+                productImage: orderDetails.design?.imageUrl || "",
+                amount: order.amount,
+                notes: order.notes || undefined,
+                orderId: order.id,
+              };
+
+              await sendCustomerOrderConfirmation(emailData);
+              console.log("✅ Bitcoin payment confirmed - customer email sent");
+            }
+          }
         }
 
         res.json({ received: true });

@@ -112,13 +112,6 @@ export async function sendCustomerOrderConfirmation(params: OrderEmailParams): P
               ${params.notes ? `<p><strong style="color: #00FF88;">Your Instructions:</strong><br/>${params.notes}</p>` : ''}
             </div>
 
-            <div style="background-color: #111111; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-              <h2 style="color: #00D4FF; margin-top: 0;">WHAT HAPPENS NEXT?</h2>
-              <p style="margin: 10px 0;">🎨 <strong>Week 1-2:</strong> Our artisan begins crafting your custom piece</p>
-              <p style="margin: 10px 0;">📦 <strong>Week 2-3:</strong> Quality check and secure packaging</p>
-              <p style="margin: 10px 0;">🚚 <strong>Week 3:</strong> Shipped with tracking information</p>
-            </div>
-
             <div style="background-color: #111111; padding: 20px; border-radius: 8px; text-align: center;">
               <p style="color: #00FF88; font-size: 16px; margin-bottom: 15px;">
                 Questions about your order?
