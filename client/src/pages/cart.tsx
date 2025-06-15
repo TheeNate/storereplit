@@ -157,7 +157,7 @@ export default function Cart() {
 
       const data = await response.json();
       setShippingOptions(data.shippingOptions);
-      
+
       // Auto-select Priority Mail as default
       if (data.shippingOptions.length > 0) {
         const defaultShipping = data.shippingOptions.find((opt: any) => opt.service === 'PRIORITY_MAIL') || data.shippingOptions[0];
@@ -392,7 +392,7 @@ export default function Cart() {
                     </p>
                   )}
                 </div>
-                
+
                 {!showCheckoutForm && (
                   <Button
                     onClick={() => setShowCheckoutForm(true)}
@@ -455,14 +455,16 @@ export default function Cart() {
                             </FormItem>
                           )}
                         />
-                        <FormField
+                         <FormField
                           control={form.control}
                           name="address"
                           render={({ field }) => (
                             <FormItem>
+                              
                               <FormLabel className="text-matrix font-mono text-sm">
                                 SHIPPING ADDRESS *
                               </FormLabel>
+                              <p className="text-gray-400 font-mono text-sm">( US only for now, international soon )</p>
                               <FormControl>
                                 <Textarea
                                   {...field}
