@@ -122,8 +122,7 @@ export async function sendCustomerOrderConfirmation(params: OrderEmailParams): P
 
             <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #00FF88;">
               <p style="color: #666666; font-size: 12px;">
-                BTC Glass - Crafting the future of art through cryptocurrency<br/>
-                Built for the cypherpunk revolution. Code is law.
+                BTC Glass <br/>
               </p>
             </div>
           </div>
