@@ -26,7 +26,7 @@ const checkoutSchema = z.object({
   aptSuite: z.string().optional(),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
-  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "Please enter a valid ZIP code"),
+  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "Please enter a valid US ZIP code"),
   notes: z.string().optional(),
 });
 
