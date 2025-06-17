@@ -12,6 +12,7 @@ import Success from "@/pages/success";
 import Create from "@/pages/create";
 import Admin from "@/pages/admin";
 import Cart from "@/pages/cart-new";
+import { FaqsPage } from "@/pages/faqs";
 import NotFound from "@/pages/not-found";
 
 function Router() {

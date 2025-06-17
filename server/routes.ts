@@ -11,6 +11,7 @@ import {
   insertOrderSchema,
   insertDesignSchema,
   insertSizeOptionSchema,
+  insertFaqSchema,
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
 import { zapriteService } from "./zaprite";
@@ -1043,6 +1044,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "USPS API connection failed",
         error: error.message,
       });
+    }
+  });
+
+  // FAQ routes
+  app.get("/api/faqs", async (req, res) => {
+    try {
+      const faqs = await storage.getActiveFaqs();
+      res.json(faqs);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching FAQs: " + error.message });
+    }
+  });
+
+  app.get("/api/faqs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const faq = await storage.getFaq(id);
+      if (!faq) {
+        return res.status(404).json({ message: "FAQ not found" });
+      }
+      res.json(faq);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching FAQ: " + error.message });
+    }
+  });
+
+  // Admin FAQ routes
+  app.get("/api/admin/faqs", requireAdminAuth, async (req, res) => {
+    try {
+      const faqs = await storage.getAllFaqs();
+      res.json(faqs);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching admin FAQs: " + error.message });
+    }
+  });
+
+  app.post("/api/admin/faqs", requireAdminAuth, async (req, res) => {
+    try {
+      const { question, answer, category, isActive, displayOrder } = req.body;
+
+      const faqData = {
+        question,
+        answer,
+        category: category || null,
+        isActive: isActive !== undefined ? isActive : true,
+        displayOrder: displayOrder || 0,
+      };
+
+      const validatedData = insertFaqSchema.parse(faqData);
+      const faq = await storage.createFaq(validatedData);
+
+      res.json(faq);
+    } catch (error: any) {
+      res.status(400).json({ message: "Error creating FAQ: " + error.message });
+    }
+  });
+
+  app.put("/api/admin/faqs/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { question, answer, category, isActive, displayOrder } = req.body;
+
+      const updateData: any = {};
+      if (question) updateData.question = question;
+      if (answer) updateData.answer = answer;
+      if (category !== undefined) updateData.category = category;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (displayOrder !== undefined) updateData.displayOrder = displayOrder;
+
+      const faq = await storage.updateFaq(id, updateData);
+      if (!faq) {
+        return res.status(404).json({ message: "FAQ not found" });
+      }
+
+      res.json(faq);
+    } catch (error: any) {
+      res.status(400).json({ message: "Error updating FAQ: " + error.message });
+    }
+  });
+
+  app.delete("/api/admin/faqs/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteFaq(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "FAQ not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ message: "Error deleting FAQ: " + error.message });
     }
   });
 
