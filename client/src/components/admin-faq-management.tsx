@@ -63,7 +63,7 @@ export function AdminFaqManagement() {
 
   const createFaqMutation = useMutation({
     mutationFn: (data: FaqFormData) =>
-      apiRequest("/api/admin/faqs", "POST", data),
+      apiRequest("POST", "/api/admin/faqs", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/faqs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/faqs"] });
@@ -86,7 +86,7 @@ export function AdminFaqManagement() {
 
   const updateFaqMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<FaqFormData> }) =>
-      apiRequest(`/api/admin/faqs/${id}`, "PUT", data),
+      apiRequest("PUT", `/api/admin/faqs/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/faqs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/faqs"] });
@@ -108,7 +108,7 @@ export function AdminFaqManagement() {
   });
 
   const deleteFaqMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/admin/faqs/${id}`, "DELETE"),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/faqs/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/faqs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/faqs"] });
