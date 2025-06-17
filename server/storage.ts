@@ -4,6 +4,7 @@ import {
   orders,
   designs,
   sizeOptions,
+  faqs,
   type User,
   type InsertUser,
   type Product,
@@ -14,9 +15,11 @@ import {
   type InsertDesign,
   type SizeOption,
   type InsertSizeOption,
+  type Faq,
+  type InsertFaq,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -63,6 +66,14 @@ export interface IStorage {
       }
     | undefined
   >;
+
+  // FAQ methods
+  getAllFaqs(): Promise<Faq[]>;
+  getActiveFaqs(): Promise<Faq[]>;
+  getFaq(id: number): Promise<Faq | undefined>;
+  createFaq(faq: InsertFaq): Promise<Faq>;
+  updateFaq(id: number, faq: Partial<InsertFaq>): Promise<Faq | undefined>;
+  deleteFaq(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -241,6 +252,38 @@ export class DatabaseStorage implements IStorage {
       design,
       sizeOption,
     };
+  }
+
+  // FAQ methods
+  async getAllFaqs(): Promise<Faq[]> {
+    return await db.select().from(faqs).orderBy(asc(faqs.displayOrder), asc(faqs.createdAt));
+  }
+
+  async getActiveFaqs(): Promise<Faq[]> {
+    return await db.select().from(faqs).where(eq(faqs.isActive, true)).orderBy(asc(faqs.displayOrder), asc(faqs.createdAt));
+  }
+
+  async getFaq(id: number): Promise<Faq | undefined> {
+    const [faq] = await db.select().from(faqs).where(eq(faqs.id, id));
+    return faq || undefined;
+  }
+
+  async createFaq(insertFaq: InsertFaq): Promise<Faq> {
+    const [faq] = await db.insert(faqs).values(insertFaq).returning();
+    return faq;
+  }
+
+  async updateFaq(id: number, updateData: Partial<InsertFaq>): Promise<Faq | undefined> {
+    const [faq] = await db.update(faqs).set({
+      ...updateData,
+      updatedAt: new Date(),
+    }).where(eq(faqs.id, id)).returning();
+    return faq || undefined;
+  }
+
+  async deleteFaq(id: number): Promise<boolean> {
+    const result = await db.delete(faqs).where(eq(faqs.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
