@@ -27,6 +27,7 @@ function Router() {
           <Route path="/cart" component={Cart} />
           <Route path="/success" component={Success} />
           <Route path="/create" component={Create} />
+          <Route path="/faqs" component={FaqsPage} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
         </Switch>

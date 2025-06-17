@@ -40,6 +40,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 import type { Design, SizeOption } from "@shared/schema";
+import { AdminFaqManagement } from "@/components/admin-faq-management";
 
 const authSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -378,7 +379,7 @@ export default function Admin() {
             </div>
 
             <Tabs defaultValue="designs" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 glass-morphism">
+              <TabsList className="grid w-full grid-cols-4 glass-morphism">
                 <TabsTrigger value="designs" className="font-mono">
                   <Palette className="mr-2" size={16} />
                   DESIGNS
@@ -386,6 +387,10 @@ export default function Admin() {
                 <TabsTrigger value="sizes" className="font-mono">
                   <Settings className="mr-2" size={16} />
                   SIZE OPTIONS
+                </TabsTrigger>
+                <TabsTrigger value="faqs" className="font-mono">
+                  <Shield className="mr-2" size={16} />
+                  FAQS
                 </TabsTrigger>
                 <TabsTrigger value="stripe" className="font-mono">
                   <DollarSign className="mr-2" size={16} />
@@ -712,6 +717,21 @@ export default function Admin() {
                         No size options found. Run the migration script first.
                       </p>
                     )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* FAQs Tab */}
+              <TabsContent value="faqs" className="space-y-6">
+                <Card className="glass-morphism">
+                  <CardHeader>
+                    <CardTitle className="text-3xl font-display font-bold text-electric">
+                      <Shield className="mr-4 inline" />
+                      FAQ MANAGEMENT
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <AdminFaqManagement />
                   </CardContent>
                 </Card>
               </TabsContent>
