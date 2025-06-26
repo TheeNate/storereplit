@@ -1,11 +1,42 @@
 import { useQuery } from "@tanstack/react-query";
-import { Play, Upload } from "lucide-react";
+import { useRef, useEffect } from "react";
+import { Upload } from "lucide-react";
 import type { LandingVideo } from "@shared/schema";
 
 export function LandingVideoPlayer() {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { data: video, isLoading } = useQuery<LandingVideo | null>({
     queryKey: ["/api/landing-video/current"],
   });
+
+  useEffect(() => {
+    if (video && videoRef.current) {
+      const videoElement = videoRef.current;
+      
+      const attemptPlay = async () => {
+        try {
+          videoElement.muted = true; // Ensure muted for autoplay
+          await videoElement.play();
+        } catch (error) {
+          console.log("Autoplay blocked by browser policy");
+        }
+      };
+
+      // Multiple approaches to ensure autoplay
+      videoElement.addEventListener('loadeddata', attemptPlay);
+      videoElement.addEventListener('canplay', attemptPlay);
+      videoElement.addEventListener('canplaythrough', attemptPlay);
+      
+      // Force load the video
+      videoElement.load();
+
+      return () => {
+        videoElement.removeEventListener('loadeddata', attemptPlay);
+        videoElement.removeEventListener('canplay', attemptPlay);
+        videoElement.removeEventListener('canplaythrough', attemptPlay);
+      };
+    }
+  }, [video]);
 
   if (isLoading) {
     return (
@@ -30,6 +61,7 @@ export function LandingVideoPlayer() {
   return (
     <div className="w-full h-[400px] relative overflow-hidden rounded-lg border border-matrix/30 bg-black">
       <video
+        ref={videoRef}
         key={video.id}
         className="w-full h-full object-cover"
         autoPlay
@@ -42,13 +74,6 @@ export function LandingVideoPlayer() {
         <source src={video.filePath} type={video.mimeType} />
         Your browser does not support the video tag.
       </video>
-      
-      {/* Subtle overlay with play indicator */}
-      <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-        <div className="bg-black/50 rounded-full p-4">
-          <Play className="w-8 h-8 text-white fill-white" />
-        </div>
-      </div>
       
       {/* Subtle gradient overlay at bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
