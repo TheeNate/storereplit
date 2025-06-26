@@ -5,6 +5,7 @@ import {
   designs,
   sizeOptions,
   faqs,
+  landingVideos,
   type User,
   type InsertUser,
   type Product,
@@ -17,6 +18,8 @@ import {
   type InsertSizeOption,
   type Faq,
   type InsertFaq,
+  type LandingVideo,
+  type InsertLandingVideo,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc } from "drizzle-orm";
@@ -74,6 +77,15 @@ export interface IStorage {
   createFaq(faq: InsertFaq): Promise<Faq>;
   updateFaq(id: number, faq: Partial<InsertFaq>): Promise<Faq | undefined>;
   deleteFaq(id: number): Promise<boolean>;
+
+  // Landing video methods
+  getAllLandingVideos(): Promise<LandingVideo[]>;
+  getActiveLandingVideo(): Promise<LandingVideo | undefined>;
+  getLandingVideo(id: number): Promise<LandingVideo | undefined>;
+  createLandingVideo(video: InsertLandingVideo): Promise<LandingVideo>;
+  updateLandingVideo(id: number, video: Partial<InsertLandingVideo>): Promise<LandingVideo | undefined>;
+  deleteLandingVideo(id: number): Promise<boolean>;
+  deactivateAllLandingVideos(): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -284,6 +296,47 @@ export class DatabaseStorage implements IStorage {
   async deleteFaq(id: number): Promise<boolean> {
     const result = await db.delete(faqs).where(eq(faqs.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Landing video methods
+  async getAllLandingVideos(): Promise<LandingVideo[]> {
+    return await db.select().from(landingVideos).orderBy(asc(landingVideos.createdAt));
+  }
+
+  async getActiveLandingVideo(): Promise<LandingVideo | undefined> {
+    const [video] = await db.select().from(landingVideos).where(eq(landingVideos.isActive, true)).limit(1);
+    return video || undefined;
+  }
+
+  async getLandingVideo(id: number): Promise<LandingVideo | undefined> {
+    const [video] = await db.select().from(landingVideos).where(eq(landingVideos.id, id));
+    return video || undefined;
+  }
+
+  async createLandingVideo(insertVideo: InsertLandingVideo): Promise<LandingVideo> {
+    const [video] = await db.insert(landingVideos).values(insertVideo).returning();
+    return video;
+  }
+
+  async updateLandingVideo(id: number, updateData: Partial<InsertLandingVideo>): Promise<LandingVideo | undefined> {
+    const [video] = await db.update(landingVideos).set({
+      ...updateData,
+      updatedAt: new Date(),
+    }).where(eq(landingVideos.id, id)).returning();
+    return video || undefined;
+  }
+
+  async deleteLandingVideo(id: number): Promise<boolean> {
+    const result = await db.delete(landingVideos).where(eq(landingVideos.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deactivateAllLandingVideos(): Promise<boolean> {
+    const result = await db.update(landingVideos).set({ 
+      isActive: false,
+      updatedAt: new Date(),
+    });
+    return (result.rowCount ?? 0) >= 0;
   }
 }
 

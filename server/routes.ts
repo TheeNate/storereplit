@@ -12,6 +12,7 @@ import {
   insertDesignSchema,
   insertSizeOptionSchema,
   insertFaqSchema,
+  insertLandingVideoSchema,
 } from "@shared/schema";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "./resend";
 import { zapriteService } from "./zaprite";
@@ -25,7 +26,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-04-30.basil",
 });
 
-// Configure multer for file uploads
+// Configure multer for image uploads
 const upload = multer({
   dest: "uploads/",
   fileFilter: (req, file, cb) => {
@@ -38,6 +39,22 @@ const upload = multer({
   },
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+});
+
+// Configure multer for video uploads
+const videoUpload = multer({
+  dest: "uploads/videos/",
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only MP4, WebM and QuickTime video files are allowed"));
+    }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for videos
   },
 });
 

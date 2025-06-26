@@ -1,0 +1,97 @@
+# Add Video Upload Feature to Landing Page
+
+## Overview
+Add a video upload and display feature to the existing landing page between the navigation buttons and the "designs collection" title.
+
+## Current Layout
+- Landing page has 2 buttons: "browse designs" and "custom designs"
+- Empty space with black background below buttons
+- Large "designs collection" title at bottom
+- Need to insert video functionality in the empty space
+
+## Required Features
+
+### 1. Frontend Video Display
+- Add a video container in the empty space between buttons and "designs collection" title
+- Video should:
+  - Play automatically on loop
+  - Be muted by default (for autoplay compliance)
+  - Be responsive and fit the available space
+  - Have a clean, modern appearance that matches the existing design
+  - Show a placeholder/drop zone when no video is uploaded
+
+### 2. Admin Video Management
+- Create an admin interface to manage the landing page video
+- Admin should be able to:
+  - Upload new video files (MP4, WebM, MOV formats)
+  - Preview the current video
+  - Replace/delete existing video
+  - See video file details (name, size, duration)
+
+### 3. File Upload System
+- Implement drag-and-drop functionality for video files
+- Add file validation:
+  - Supported formats: MP4, WebM, MOV
+  - Maximum file size limit (suggest 50MB)
+  - Basic video format validation
+- Provide upload progress indicator
+- Handle upload errors gracefully
+
+### 4. Backend Requirements
+- Create API endpoints for:
+  - Upload video file
+  - Get current video
+  - Delete video
+  - Update video metadata
+- Store video files securely
+- Serve video files efficiently
+
+## Technical Specifications
+
+### Database Changes
+- Add table/collection for landing page video:
+  - video_id (primary key)
+  - filename
+  - file_path
+  - upload_date
+  - file_size
+  - is_active (boolean)
+
+### API Endpoints Needed
+```
+POST /api/admin/landing-video/upload
+GET /api/landing-video/current
+DELETE /api/admin/landing-video/{id}
+PUT /api/admin/landing-video/{id}/toggle
+```
+
+### Frontend Components
+- VideoPlayer component for landing page
+- AdminVideoUpload component for admin panel
+- VideoDropZone component for drag-and-drop
+
+## Design Requirements
+- Video container should blend seamlessly with existing black background
+- Maintain responsive design across all screen sizes
+- Add subtle loading states and transitions
+- Ensure video doesn't interfere with page performance
+
+## User Experience
+- When no video is uploaded, show an elegant placeholder
+- Video should start playing as soon as it loads
+- Smooth transitions when video changes
+- Admin interface should be intuitive and match existing admin styling
+
+## Security Considerations
+- Validate file types on both frontend and backend
+- Implement proper authentication for admin endpoints
+- Sanitize uploaded filenames
+- Add rate limiting for upload endpoints
+
+## Performance Optimization
+- Compress videos if they exceed size limits
+- Implement lazy loading if needed
+- Add video preloading for better user experience
+- Consider CDN integration for video delivery
+
+Please implement this feature maintaining consistency with the existing codebase architecture and styling.

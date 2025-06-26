@@ -69,6 +69,19 @@ export const faqs = pgTable("faqs", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Landing page video table
+export const landingVideos = pgTable("landing_videos", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Keep the old products table for backward compatibility during migration
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -114,6 +127,12 @@ export const insertFaqSchema = createInsertSchema(faqs).omit({
   updatedAt: true,
 });
 
+export const insertLandingVideoSchema = createInsertSchema(landingVideos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // TypeScript types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -127,3 +146,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Faq = typeof faqs.$inferSelect;
 export type InsertFaq = z.infer<typeof insertFaqSchema>;
+export type LandingVideo = typeof landingVideos.$inferSelect;
+export type InsertLandingVideo = z.infer<typeof insertLandingVideoSchema>;
