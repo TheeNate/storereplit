@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useEffect } from "react";
 import { Upload } from "lucide-react";
@@ -16,24 +17,40 @@ export function LandingVideoPlayer() {
       const attemptPlay = async () => {
         try {
           videoElement.muted = true; // Ensure muted for autoplay
+          videoElement.load(); // Force reload
           await videoElement.play();
+          console.log("Video playback started successfully");
         } catch (error) {
-          console.log("Autoplay blocked by browser policy");
+          console.log("Autoplay blocked by browser policy:", error);
         }
       };
 
-      // Multiple approaches to ensure autoplay
-      videoElement.addEventListener('loadeddata', attemptPlay);
-      videoElement.addEventListener('canplay', attemptPlay);
-      videoElement.addEventListener('canplaythrough', attemptPlay);
+      // Set up event listeners
+      const handleCanPlay = () => {
+        console.log("Video can start playing");
+        attemptPlay();
+      };
+
+      const handleLoadedData = () => {
+        console.log("Video data loaded");
+        attemptPlay();
+      };
+
+      const handleError = (e: Event) => {
+        console.error("Video loading error:", e);
+      };
+
+      videoElement.addEventListener('loadeddata', handleLoadedData);
+      videoElement.addEventListener('canplay', handleCanPlay);
+      videoElement.addEventListener('error', handleError);
       
       // Force load the video
       videoElement.load();
 
       return () => {
-        videoElement.removeEventListener('loadeddata', attemptPlay);
-        videoElement.removeEventListener('canplay', attemptPlay);
-        videoElement.removeEventListener('canplaythrough', attemptPlay);
+        videoElement.removeEventListener('loadeddata', handleLoadedData);
+        videoElement.removeEventListener('canplay', handleCanPlay);
+        videoElement.removeEventListener('error', handleError);
       };
     }
   }, [video]);
@@ -70,6 +87,9 @@ export function LandingVideoPlayer() {
         playsInline
         controls={false}
         preload="auto"
+        onLoadStart={() => console.log("Video load started")}
+        onCanPlay={() => console.log("Video can play")}
+        onError={(e) => console.error("Video error:", e)}
       >
         <source src={video.filePath} type={video.mimeType} />
         Your browser does not support the video tag.
