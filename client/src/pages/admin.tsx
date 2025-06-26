@@ -726,6 +726,21 @@ export default function Admin() {
                 </Card>
               </TabsContent>
 
+              {/* Video Tab */}
+              <TabsContent value="video" className="space-y-6">
+                <Card className="glass-morphism">
+                  <CardHeader>
+                    <CardTitle className="text-3xl font-display font-bold text-electric">
+                      <Upload className="mr-4 inline" />
+                      LANDING PAGE VIDEO
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <AdminVideoManagement />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               {/* FAQs Tab */}
               <TabsContent value="faqs" className="space-y-6">
                 <Card className="glass-morphism">
