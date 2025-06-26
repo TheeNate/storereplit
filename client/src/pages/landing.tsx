@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Rocket, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DesignCard } from "@/components/design-card";
+import { LandingVideoPlayer } from "@/components/landing-video-player";
 import type { Design } from "@shared/schema";
 
 export default function Landing() {
@@ -72,6 +73,13 @@ export default function Landing() {
           className="absolute top-1/3 right-1/4 w-8 h-8 border border-matrix rotate-45 animate-float opacity-30"
           style={{ animationDelay: "4s" }}
         />
+      </section>
+
+      {/* Video Showcase Section */}
+      <section className="py-20 px-6 bg-darker-surface/30">
+        <div className="container mx-auto max-w-6xl">
+          <LandingVideoPlayer />
+        </div>
       </section>
 
       {/* Designs Gallery Section */}

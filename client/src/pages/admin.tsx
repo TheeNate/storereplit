@@ -41,6 +41,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 import type { Design, SizeOption } from "@shared/schema";
 import { AdminFaqManagement } from "@/components/admin-faq-management";
+import { AdminVideoManagement } from "@/components/admin-video-management";
 
 const authSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -379,7 +380,7 @@ export default function Admin() {
             </div>
 
             <Tabs defaultValue="designs" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 glass-morphism">
+              <TabsList className="grid w-full grid-cols-5 glass-morphism">
                 <TabsTrigger value="designs" className="font-mono">
                   <Palette className="mr-2" size={16} />
                   DESIGNS
@@ -387,6 +388,10 @@ export default function Admin() {
                 <TabsTrigger value="sizes" className="font-mono">
                   <Settings className="mr-2" size={16} />
                   SIZE OPTIONS
+                </TabsTrigger>
+                <TabsTrigger value="video" className="font-mono">
+                  <Upload className="mr-2" size={16} />
+                  VIDEO
                 </TabsTrigger>
                 <TabsTrigger value="faqs" className="font-mono">
                   <Shield className="mr-2" size={16} />

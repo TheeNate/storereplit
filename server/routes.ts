@@ -1154,6 +1154,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Landing video routes
+  app.get("/api/landing-video/current", async (req, res) => {
+    try {
+      const video = await storage.getActiveLandingVideo();
+      res.json(video || null);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching landing video: " + error.message });
+    }
+  });
+
+  // Admin landing video routes
+  app.get("/api/admin/landing-videos", requireAdminAuth, async (req, res) => {
+    try {
+      const videos = await storage.getAllLandingVideos();
+      res.json(videos);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching admin landing videos: " + error.message });
+    }
+  });
+
+  app.post("/api/admin/landing-video/upload", requireAdminAuth, videoUpload.single("video"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Video file is required" });
+      }
+
+      // Deactivate all existing videos first
+      await storage.deactivateAllLandingVideos();
+
+      const videoData = {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        filePath: `/uploads/videos/${req.file.filename}`,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        isActive: true,
+      };
+
+      const validatedData = insertLandingVideoSchema.parse(videoData);
+      const video = await storage.createLandingVideo(validatedData);
+
+      res.json(video);
+    } catch (error: any) {
+      res.status(400).json({ message: "Error uploading video: " + error.message });
+    }
+  });
+
+  app.put("/api/admin/landing-videos/:id/toggle", requireAdminAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const video = await storage.getLandingVideo(id);
+      
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      if (!video.isActive) {
+        // If activating this video, deactivate all others first
+        await storage.deactivateAllLandingVideos();
+      }
+
+      const updatedVideo = await storage.updateLandingVideo(id, { 
+        isActive: !video.isActive 
+      });
+
+      res.json(updatedVideo);
+    } catch (error: any) {
+      res.status(400).json({ message: "Error toggling video status: " + error.message });
+    }
+  });
+
+  app.delete("/api/admin/landing-videos/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const video = await storage.getLandingVideo(id);
+      
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      // Delete the file from filesystem
+      const fs = await import('fs/promises');
+      const fullPath = path.join(process.cwd(), 'uploads', 'videos', video.filename);
+      try {
+        await fs.unlink(fullPath);
+      } catch (fileError) {
+        console.warn('Could not delete video file:', fileError);
+      }
+
+      const deleted = await storage.deleteLandingVideo(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ message: "Error deleting video: " + error.message });
+    }
+  });
+
   // Serve uploaded files
   app.use("/uploads", express.static("uploads"));
 
